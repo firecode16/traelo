@@ -1,0 +1,17 @@
+export default {
+  bakedFries: require('../assets/images/business/baked-fries.jpg'),
+  burgerRestaurant1: require('../assets/images/business/burger-restaurant.jpg'),
+  burgerRestaurant2: require('../assets/images/business/burger-restaurant-2.jpg'),
+  chicagoHotDog: require('../assets/images/business/chicago-hot-dog.jpg'),
+  crispyChickenBurger: require('../assets/images/business/crispy-chicken-burger.jpg'),
+  honeyMustardChickenBurger: require('../assets/images/business/honey-mustard-chicken-burger.jpg'),
+  friesRestaurant: require('../assets/images/business/fries-restaurant.jpg'),
+  hawaiianPizza: require('../assets/images/business/hawaiian-pizza.jpg'),
+  pizza: require('../assets/images/business/pizza.jpg'),
+  pizzaRestaurant: require('../assets/images/business/pizza-restaurant.jpg'),
+  tomatoPasta: require('../assets/images/business/tomato-pasta.jpg'),
+  salad: require('../assets/images/business/salad.jpg'),
+  polloCover: require('../assets/images/business/pollo-cover.jpg'),
+  polloHorno: require('../assets/images/business/polloNaranjasYarandanos.jpg'),
+  polloParrilla: require('../assets/images/business/polloParrilla.jpg'),
+};
