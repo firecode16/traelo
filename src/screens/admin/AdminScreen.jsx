@@ -7,11 +7,11 @@ import {
 } from 'react-native';
 import { COLOR } from '../../constants/Color';
 
-const ProfileScreen = ({ navigation }) => {
+const AdminScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar animated={true} style="light" />
-      <Text style={styles.title}>Pantalla del perfil del usuario</Text>
+      <Text style={styles.title}>Pantalla del administrador</Text>
 
       <TouchableOpacity
         onPress={() =>
@@ -44,4 +44,4 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
-export default ProfileScreen;
+export default AdminScreen;

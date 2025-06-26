@@ -21,7 +21,7 @@ import InputField from '../../components/InputField';
 import { COLOR } from '../../constants/Color';
 
 const LoginScreen = ({ navigation }) => {
-  const [selectedRole, setSelectedRole] = useState('Cliente');
+  const [selectedRole, setSelectedRole] = useState('Customer');
 
   return (
     <SafeAreaView style={styles.safeView}>
@@ -61,10 +61,10 @@ const LoginScreen = ({ navigation }) => {
               onValueChange={(itemValue) => setSelectedRole(itemValue)}
               style={styles.picker}
             >
-              <Picker.Item label="Cliente" value="Cliente" />
-              <Picker.Item label="Negocio" value="Negocio" />
-              <Picker.Item label="Repartidor" value="Repartidor" />
-              <Picker.Item label="Administrador" value="Administrador" />
+              <Picker.Item label="Cliente" value="Customer" />
+              <Picker.Item label="Negocio" value="Business" />
+              <Picker.Item label="Repartidor" value="Rider" />
+              <Picker.Item label="Administrador" value="Admin" />
             </Picker>
           </View>
         </View>
@@ -100,7 +100,7 @@ const LoginScreen = ({ navigation }) => {
         <CustomButton
           label={'Iniciar sesión'}
           onPress={() => {
-            navigation.replace('Home', { role: selectedRole });
+            navigation.replace('RoleRouter', { role: selectedRole });
           }}
         />
 
@@ -202,20 +202,24 @@ const styles = StyleSheet.create({
   pickerContainer: {
     borderWidth: 1,
     borderColor: '#ccc',
-    borderRadius: 8,
+    borderRadius: 10,
     marginTop: 4,
-    marginBottom: 16,
   },
-
   picker: {
-    height: 50,
-    width: '100%',
+    height: 52,
+    fontSize: 14,
+    fontFamily: 'Roboto-Regular',
+    color: '#333',
+    paddingHorizontal: 10,
+  },
+  inputGroup: {
+    marginBottom: 25,
   },
   label: {
-    fontSize: 14,
-    color: '#444',
-    marginBottom: 4,
-    fontWeight: 'bold',
+    color: '#666',
+    fontSize: 15,
+    fontFamily: 'Roboto-Medium',
+    bottom: 4,
   },
 });
 

@@ -1,4 +1,3 @@
-import { TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AntDesign from '@expo/vector-icons/AntDesign';
@@ -11,7 +10,7 @@ import { COLOR } from '../constants/Color';
 
 const Tab = createBottomTabNavigator();
 
-const TabNavigation = ({ navigation }) => {
+const TabCustomerNavigation = ({ navigation }) => {
   return (
     <Tab.Navigator
       initialRouteName="Inicio"
@@ -34,17 +33,10 @@ const TabNavigation = ({ navigation }) => {
         component={HomeScreen}
         options={{
           headerShown: true,
+          title: 'Inicio',
           headerBackVisible: false, // automatic hidde if exist
           headerTitle: () => <SearchBar />,
           headerTitleAlign: 'center',
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => navigation.replace('Login')}
-              style={{ marginLeft: 10 }}
-            >
-              <Ionicons name="arrow-back" size={24} color="black" />
-            </TouchableOpacity>
-          ),
           tabBarIcon: ({ focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
@@ -72,4 +64,4 @@ const TabNavigation = ({ navigation }) => {
   );
 };
 
-export default TabNavigation;
+export default TabCustomerNavigation;

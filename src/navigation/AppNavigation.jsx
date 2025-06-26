@@ -1,9 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/auth/LoginScreen';
-import TabNavigation from './TabNavigation';
-import BusinessDetailScreen from '../screens/user/BusinessDetailScreen';
-import CartScreen from '../screens/user/CartScreen';
+import RoleRouter from './routes/RoleRouter';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,25 +14,9 @@ const AppNavigation = () => {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="Home"
-        component={TabNavigation}
+        name="RoleRouter"
+        component={RoleRouter}
         options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="BusinessDetail"
-        component={BusinessDetailScreen}
-        options={{
-          headerTitle: 'Menú',
-          headerTitleStyle: { fontFamily: 'Poppins-SemiBold', fontSize: 20 },
-        }}
-      />
-      <Stack.Screen
-        name="Cart"
-        component={CartScreen}
-        options={{
-          headerTitle: 'Tu carrito',
-          headerTitleStyle: { fontFamily: 'Poppins-SemiBold', fontSize: 20 },
-        }}
       />
     </Stack.Navigator>
   );
