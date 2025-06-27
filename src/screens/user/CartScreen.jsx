@@ -6,8 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Linking,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import MapModal from '../../components/MapModal';
+import * as Location from 'expo-location';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Entypo from '@expo/vector-icons/Entypo';
 import { COLOR } from '../../constants/Color';
 import { generateOrderMessage } from '../../data/OrderMessage';
 
@@ -16,9 +21,59 @@ const CartScreen = ({ route, navigation }) => {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  /** loading */
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+
+  /** map location */
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [markerCoords, setMarkerCoords] = useState(null);
+
+  /** order cart */
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
+
+  const [deliveryLocation, setDeliveryLocation] = useState(null);
+  const [showLocationWarning, setShowLocationWarning] = useState(false);
+
+  const openMapModal = async () => {
+    // show loading
+    setIsLoadingLocation(true);
+
+    try {
+      // Si ya tenemos ubicación guardada, no la volvemos a pedir
+      if (!location) {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          alert('Permiso de ubicación denegado');
+          setIsLoadingLocation(false);
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Lowest,
+          maximumAge: 30000,
+        });
+
+        const coords = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        };
+
+        setLocation(coords);
+        setMarkerCoords(coords);
+      }
+
+      // show modal
+      setShowMapModal(true);
+    } catch (error) {
+      console.warn('Error al obtener ubicación:', error);
+      alert('No se pudo obtener tu ubicación');
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
 
   const openRemoveModal = (menuId) => {
     setSelectedProductId(menuId);
@@ -41,10 +96,12 @@ const CartScreen = ({ route, navigation }) => {
 
   const sendOrderToWhatsApp = () => {
     const businessPhone = item.cellPhone; // número de WhatsApp del negocio
+    const locationUrl = `https://www.google.com/maps?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`;
     const message = generateOrderMessage(
       item.businessName,
       'Nombre cliente',
       cart,
+      locationUrl,
     );
     const url = `https://wa.me/${businessPhone}?text=${message}`;
 
@@ -82,8 +139,40 @@ const CartScreen = ({ route, navigation }) => {
             <Text style={styles.totalText}>Total: ${total}</Text>
 
             <TouchableOpacity
+              style={styles.locationButton}
+              onPress={openMapModal}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                <Entypo
+                  name="location"
+                  size={22}
+                  color={COLOR.lightGray}
+                  style={{ right: 10 }}
+                />
+                <Text style={styles.locationButtonText}>
+                  {deliveryLocation
+                    ? 'Ubicación seleccionada'
+                    : 'Seleccionar ubicación de entrega'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {isLoadingLocation && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#22C55E" />
+                <Text style={styles.loadingText}>Obteniendo ubicación...</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
               style={styles.confirmButton}
-              onPress={() => setShowConfirmModal(true)}
+              onPress={() => {
+                if (!deliveryLocation) {
+                  setShowLocationWarning(true);
+                } else {
+                  setShowConfirmModal(true);
+                }
+              }}
             >
               <View style={{ flexDirection: 'row' }}>
                 <Ionicons
@@ -97,6 +186,22 @@ const CartScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </>
         }
+      />
+
+      {/* Modal: Map */}
+      <MapModal
+        visible={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        location={location}
+        markerCoords={markerCoords}
+        setMarkerCoords={setMarkerCoords}
+        onConfirm={() => {
+          if (markerCoords) {
+            setDeliveryLocation(markerCoords);
+            setShowMapModal(false);
+          }
+          console.log('Ubicación confirmada:', markerCoords);
+        }}
       />
 
       {/* Modal: Confirmar pedido */}
@@ -133,6 +238,25 @@ const CartScreen = ({ route, navigation }) => {
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmRemove}>
                 <Text style={styles.modalDelete}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/** Modal: show location warning */}
+      {showLocationWarning && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Ubicación requerida</Text>
+            <Text style={styles.modalText}>
+              Por favor selecciona la ubicación de entrega antes de confirmar tu
+              pedido.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setShowLocationWarning(false)}>
+                <Text style={styles.modalCancel}>Entendido</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -260,6 +384,34 @@ const styles = StyleSheet.create({
     color: '#E63946',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+
+  locationButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  locationButtonText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#333',
+  },
+
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
   },
 });
 
