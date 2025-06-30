@@ -146,13 +146,17 @@ const CartScreen = ({ route, navigation }) => {
                 <Entypo
                   name="location"
                   size={22}
-                  color={COLOR.lightGray}
+                  color={deliveryLocation ? COLOR.orange : COLOR.lightGray}
                   style={{ right: 10 }}
                 />
                 <Text style={styles.locationButtonText}>
-                  {deliveryLocation
-                    ? 'Ubicación seleccionada'
-                    : 'Seleccionar ubicación de entrega'}
+                  {deliveryLocation ? (
+                    <Text style={styles.selectedLocationText}>
+                      Ubicación seleccionada
+                    </Text>
+                  ) : (
+                    'Seleccionar ubicación de entrega'
+                  )}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -397,6 +401,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     color: '#333',
+  },
+  selectedLocationText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+    textAlign: 'center',
+    color: COLOR.orange,
   },
 
   loadingContainer: {
