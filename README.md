@@ -16,3 +16,6 @@ Lanzar un MVP
 
 ![image](https://github.com/user-attachments/assets/268d3c3d-026f-4993-b398-ae521c7ac3ae)
 
+![image](https://github.com/user-attachments/assets/9f3dc2a7-cf64-456d-be15-f704a73bec65)
+
+![image](https://github.com/user-attachments/assets/143cad1a-1294-4835-a10e-fd9b6ef92f0a)
