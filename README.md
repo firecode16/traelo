@@ -1,12 +1,12 @@
 🚀 App de entregas Local <strong>Traelo</strong>
 
-🧩 Estructura de la App de Entregas Local (MVP)
+🧩 Estructura de la App de Entregas Local (MVP)<br>
 🎯 Objetivo:
 Lanzar un MVP
 
-👤 1. Usuario (cliente)
-🏪 2. Negocios (restaurantes, tacos, fondas)
-🛵 3. Repartidor (delivery)
+👤 1. Usuario (cliente)<br>
+🏪 2. Negocios (restaurantes, tacos, fondas)<br>
+🛵 3. Repartidor (delivery)<br>
 ⚙️ 4. Admin (tú)
 
 🧱 Arquitectura Técnica MVP – "Tráelo"<br>
