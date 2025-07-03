@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
+
+import { logoutUser } from '../../services/AuthService';
 import { COLOR } from '../../constants/Color';
 
 const RiderScreen = ({ navigation }) => {
@@ -13,14 +15,7 @@ const RiderScreen = ({ navigation }) => {
       <StatusBar animated={true} style="light" />
       <Text style={styles.title}>Pantalla del repartidor</Text>
 
-      <TouchableOpacity
-        onPress={() =>
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-          })
-        }
-      >
+      <TouchableOpacity onPress={() => logoutUser(navigation)}>
         <Text
           style={{ color: 'red', fontFamily: 'Poppins-SemiBold', fontSize: 15 }}
         >

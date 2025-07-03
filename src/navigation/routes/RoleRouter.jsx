@@ -8,13 +8,13 @@ const RoleRouter = ({ route }) => {
   const { role } = route.params;
 
   switch (role) {
-    case 'Customer':
+    case 'CUSTOMER':
       return <CustomerStack />;
-    case 'Business':
+    case 'BUSINESS':
       return <BusinessStack />;
-    case 'Rider':
+    case 'RIDER':
       return <RiderStack />;
-    case 'Admin':
+    case 'ADMIN':
       return <AdminStack />;
     default:
       return null;

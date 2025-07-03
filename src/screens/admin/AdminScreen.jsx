@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
+
+import { logoutUser } from '../../services/AuthService';
 import { COLOR } from '../../constants/Color';
 
 const AdminScreen = ({ navigation }) => {
@@ -13,14 +15,7 @@ const AdminScreen = ({ navigation }) => {
       <StatusBar animated={true} style="light" />
       <Text style={styles.title}>Pantalla del administrador</Text>
 
-      <TouchableOpacity
-        onPress={() =>
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-          })
-        }
-      >
+      <TouchableOpacity onPress={() => logoutUser(navigation)}>
         <Text
           style={{ color: 'red', fontFamily: 'Poppins-SemiBold', fontSize: 15 }}
         >
