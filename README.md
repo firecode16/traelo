@@ -19,3 +19,7 @@ Lanzar un MVP
 ![image](https://github.com/user-attachments/assets/9f3dc2a7-cf64-456d-be15-f704a73bec65)
 
 ![image](https://github.com/user-attachments/assets/143cad1a-1294-4835-a10e-fd9b6ef92f0a)
+
+<strong>Demo Video</strong>
+
+https://youtube.com/shorts/39PdzJzozcM?si=iroyCMSlOMDacT0I
