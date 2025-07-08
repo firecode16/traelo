@@ -9,11 +9,11 @@ import {
 import { logoutUser } from '../../services/AuthService';
 import { COLOR } from '../../constants/Color';
 
-const BusinessScreen = ({ navigation }) => {
+const BusinessOrdersScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar animated={true} style="light" />
-      <Text style={styles.title}>Pantalla del negocio</Text>
+      <Text style={styles.title}>Pantalla de pedidos</Text>
 
       <TouchableOpacity onPress={() => logoutUser(navigation)}>
         <Text
@@ -39,4 +39,4 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
-export default BusinessScreen;
+export default BusinessOrdersScreen;

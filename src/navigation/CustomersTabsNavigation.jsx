@@ -10,7 +10,7 @@ import { COLOR } from '../constants/Color';
 
 const Tab = createBottomTabNavigator();
 
-const TabCustomerNavigation = ({ navigation }) => {
+const CustomersTabsNavigation = ({ navigation }) => {
   return (
     <Tab.Navigator
       initialRouteName="Inicio"
@@ -64,4 +64,4 @@ const TabCustomerNavigation = ({ navigation }) => {
   );
 };
 
-export default TabCustomerNavigation;
+export default CustomersTabsNavigation;

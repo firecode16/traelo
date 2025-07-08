@@ -10,6 +10,8 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { COLOR } from '../../constants/Color';
@@ -18,12 +20,13 @@ import { registerUser } from '../../services/RegisterService';
 
 const RegisterScreen = ({ navigation }) => {
   const [form, setForm] = useState({
+    role: '',
     fullName: '',
     username: '',
     email: '',
     password: '',
     phone: '',
-    role: '',
+    address: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -37,6 +40,7 @@ const RegisterScreen = ({ navigation }) => {
   const validateForm = () => {
     let newErrors = {};
 
+    if (!form.role) newErrors.role = 'Selecciona un rol válido';
     if (!form.fullName.trim()) newErrors.fullName = 'Nombre requerido';
     if (!form.username.trim()) newErrors.username = 'Usuario requerido';
     if (!form.email.trim()) newErrors.email = 'Email requerido';
@@ -48,7 +52,9 @@ const RegisterScreen = ({ navigation }) => {
     if (!form.password) newErrors.password = 'Contraseña requerida';
     else if (form.password.length < 6)
       newErrors.password = 'Mínimo 6 caracteres';
-    if (!form.role) newErrors.role = 'Selecciona un rol válido';
+    if (form.role === 'ROLE_BUSINESS' && !form.address.trim()) {
+      newErrors.address = 'La dirección es obligatoria';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -62,12 +68,13 @@ const RegisterScreen = ({ navigation }) => {
       try {
         const userData = {
           userId: Date.now(),
+          roles: [form.role],
           fullName: form.fullName,
           username: form.username,
           email: form.email,
           phone: form.phone,
           password: form.password,
-          roles: [form.role],
+          address: form.role === 'ROLE_BUSINESS' ? form.address : null,
           createdAt: new Date().toISOString(),
         };
 
@@ -96,96 +103,120 @@ const RegisterScreen = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: COLOR.lightGray }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Crea tu cuenta</Text>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Crea tu cuenta</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Nombre completo"
-          value={form.fullName}
-          onChangeText={(text) => handleChange('fullName', text)}
-        />
-        {errors.fullName && (
-          <Text style={styles.errorText}>{errors.fullName}</Text>
-        )}
+          <Text style={styles.label}>Selecciona tu rol:</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={form.role}
+              onValueChange={(value) => handleChange('role', value)}
+              style={styles.picker}
+            >
+              <Picker.Item
+                label="Selecciona tu rol..."
+                value=""
+                style={{ color: '#a6a6a6' }}
+                enabled={false}
+              />
+              <Picker.Item label="Cliente" value="ROLE_CUSTOMER" />
+              <Picker.Item label="Negocio" value="ROLE_BUSINESS" />
+              <Picker.Item label="Repartidor" value="ROLE_RIDER" />
+              <Picker.Item label="Administrador" value="ROLE_ADMIN" />
+            </Picker>
+          </View>
+          {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
 
-        <TextInput
-          style={styles.input}
-          placeholder="Usuario"
-          value={form.username}
-          onChangeText={(text) => handleChange('username', text)}
-        />
-        {errors.username && (
-          <Text style={styles.errorText}>{errors.username}</Text>
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Correo electrónico"
-          value={form.email}
-          keyboardType="email-address"
-          onChangeText={(text) => handleChange('email', text)}
-        />
-        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Teléfono"
-          value={form.phone}
-          keyboardType="phone-pad"
-          onChangeText={(text) => handleChange('phone', text)}
-        />
-        {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Contraseña"
-          secureTextEntry
-          value={form.password}
-          onChangeText={(text) => handleChange('password', text)}
-        />
-        {errors.password && (
-          <Text style={styles.errorText}>{errors.password}</Text>
-        )}
-
-        <Text style={styles.label}>Selecciona tu rol:</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={form.role}
-            onValueChange={(value) => handleChange('role', value)}
-            style={styles.picker}
-          >
-            <Picker.Item
-              label="Selecciona tu rol..."
-              value=""
-              style={{ color: '#a6a6a6' }}
-              enabled={false}
-            />
-            <Picker.Item label="Cliente" value="ROLE_CUSTOMER" />
-            <Picker.Item label="Negocio" value="ROLE_BUSINESS" />
-            <Picker.Item label="Repartidor" value="ROLE_RIDER" />
-            <Picker.Item label="Administrador" value="ROLE_ADMIN" />
-          </Picker>
-        </View>
-        {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
-
-        {isLoading ? (
-          <ActivityIndicator
-            size="large"
-            color={COLOR.orange}
-            style={{ marginTop: 20 }}
+          <TextInput
+            style={styles.input}
+            placeholder={
+              form.role === 'ROLE_BUSINESS'
+                ? 'Nombre del negocio'
+                : 'Nombre completo'
+            }
+            value={form.fullName}
+            onChangeText={(text) => handleChange('fullName', text)}
           />
-        ) : (
-          <TouchableOpacity
-            style={styles.registerButton}
-            onPress={handleRegister}
-          >
-            <Text style={styles.registerButtonText}>Registrarme</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+          {errors.fullName && (
+            <Text style={styles.errorText}>{errors.fullName}</Text>
+          )}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Usuario"
+            value={form.username}
+            onChangeText={(text) => handleChange('username', text)}
+          />
+          {errors.username && (
+            <Text style={styles.errorText}>{errors.username}</Text>
+          )}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Correo electrónico"
+            value={form.email}
+            keyboardType="email-address"
+            onChangeText={(text) => handleChange('email', text)}
+          />
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Teléfono"
+            value={form.phone}
+            keyboardType="phone-pad"
+            onChangeText={(text) => handleChange('phone', text)}
+          />
+          {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Contraseña"
+            secureTextEntry
+            value={form.password}
+            onChangeText={(text) => handleChange('password', text)}
+          />
+          {errors.password && (
+            <Text style={styles.errorText}>{errors.password}</Text>
+          )}
+
+          {form.role === 'ROLE_BUSINESS' && (
+            <>
+              <Text style={styles.label}>Dirección del negocio</Text>
+              <TextInput
+                placeholder="Ej. Calle 123, Col. Centro"
+                value={form.address}
+                onChangeText={(text) => handleChange('address', text)}
+                style={styles.input}
+              />
+              {errors.address && (
+                <Text style={styles.errorText}>{errors.address}</Text>
+              )}
+            </>
+          )}
+
+          {isLoading ? (
+            <ActivityIndicator
+              size="large"
+              color={COLOR.orange}
+              style={{ marginTop: 20 }}
+            />
+          ) : (
+            <TouchableOpacity
+              style={styles.registerButton}
+              onPress={handleRegister}
+            >
+              <Text style={styles.registerButtonText}>Registrarme</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 };

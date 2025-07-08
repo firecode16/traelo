@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import BusinessScreen from '../../screens/business/BusinessScreen';
+import BusinessTabsNavigation from '../BusinessTabsNavigation';
 
 const Stack = createNativeStackNavigator();
 
@@ -7,9 +7,9 @@ const BusinessStack = () => (
   <Stack.Navigator>
     <Stack.Screen
       name="Business"
-      component={BusinessScreen}
+      component={BusinessTabsNavigation}
       options={{
-        headerShown: true,
+        headerShown: false,
         headerBackVisible: false,
         title: 'Tu tablero',
         headerTitleStyle: { fontFamily: 'Poppins-SemiBold', fontSize: 20 },

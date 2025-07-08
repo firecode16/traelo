@@ -1,7 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import TabCustomerNavigation from '../TabCustomerNavigation';
+import CustomersTabsNavigation from '../CustomersTabsNavigation';
 import BusinessDetailScreen from '../../screens/user/BusinessDetailScreen';
 import CartScreen from '../../screens/user/CartScreen';
 
@@ -11,7 +11,7 @@ const CustomerStack = () => (
   <Stack.Navigator>
     <Stack.Screen
       name="Home"
-      component={TabCustomerNavigation}
+      component={CustomersTabsNavigation}
       options={{ headerShown: false }}
     />
     <Stack.Screen

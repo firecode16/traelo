@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { decodeJWT } from '../util/JwtUtils';
 import { API } from '../constants/ApiConfig';
 
 export const loginUser = async ({ username, password }) => {
@@ -19,6 +20,20 @@ export const loginUser = async ({ username, password }) => {
   }
 
   const result = await response.json();
+  const claims = decodeJWT(result.token);
+  console.log('Claims JWT:', claims);
+
+  const userData = {
+    token: result.token,
+    userId: claims.userId,
+    username: claims.username,
+    fullName: claims.fullName,
+    email: claims.email,
+    phone: claims.phone,
+    role: claims.role[0],
+    createdAt: claims.date,
+  };
+  await AsyncStorage.setItem('userInfo', JSON.stringify(userData));
   return result.token || result.jwt;
 };
 
