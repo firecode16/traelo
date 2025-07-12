@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { getBusinessByUserId } from './BusinessService';
 import { decodeJWT } from '../util/JwtUtils';
 import { API } from '../constants/ApiConfig';
 
@@ -23,13 +24,25 @@ export const loginUser = async ({ username, password }) => {
   const claims = decodeJWT(result.token);
   console.log('Claims JWT:', claims);
 
+  let business = { businessId: '', description: '', address: '' };
+
+  if (claims.role && claims.role[0] === 'ROLE_BUSINESS') {
+    const res = await getBusinessByUserId(claims.userId);
+    business.businessId = res.businessId || '';
+    business.description = res.description || '';
+    business.address = res.address || '';
+  }
+
   const userData = {
     token: result.token,
     userId: claims.userId,
     username: claims.username,
-    fullName: claims.fullName,
+    fullName: claims.fullName, // --> Use fullName as business name
     email: claims.email,
     phone: claims.phone,
+    businessId: business.businessId || '',
+    description: business.description || '',
+    address: business.address || '',
     role: claims.role[0],
     createdAt: claims.date,
   };
@@ -47,6 +60,27 @@ export const getUserInfo = async (token) => {
   }
 
   return await response.json();
+};
+
+export const updateUser = async (userId, userData) => {
+  try {
+    const response = await fetch(API.AUTH.UPDATE(userId), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al actualizar el usuario');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('updateUser error:', error);
+    throw error;
+  }
 };
 
 export const logoutUser = async (navigation) => {

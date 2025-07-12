@@ -11,8 +11,6 @@ const BusinessStack = () => (
       options={{
         headerShown: false,
         headerBackVisible: false,
-        title: 'Tu tablero',
-        headerTitleStyle: { fontFamily: 'Poppins-SemiBold', fontSize: 20 },
       }}
     />
   </Stack.Navigator>

@@ -6,6 +6,7 @@ export const API = {
     LOGIN: `${BASE_URL_AUTH}/auth/login`,
     SIGNUP: `${BASE_URL_AUTH}/auth/signup`,
     USER_INFO: `${BASE_URL_AUTH}/auth/userInfo`,
+    UPDATE: (userId) => `${BASE_URL_AUTH}/auth/update/${userId}`,
   },
   BUSINESS: {
     CREATE: `${BASE_URL_BUSINESS}/business/create`,
@@ -17,8 +18,10 @@ export const API = {
     CREATE: `${BASE_URL_BUSINESS}/orders`,
     GET_BY_CUSTOMER: (id) => `${BASE_URL_BUSINESS}/orders/customer/${id}`,
   },
-  MENUS: {
-    LIST_BY_BUSINESS: (businessId) =>
-      `${BASE_URL_BUSINESS}/menus/business/${businessId}`,
+  MENU: {
+    CREATE: `${BASE_URL_BUSINESS}/menu/create`,
+    UPDATE: (menuId) => `${BASE_URL_BUSINESS}/menu/update/${menuId}`,
+    DELETE: (menuId) => `${BASE_URL_BUSINESS}/menu/delete/${menuId}`,
+    GET_BY_BUSINESS: (businessId) => `${BASE_URL_BUSINESS}/menu/getMenusByBusiness/${businessId}`,
   },
 };

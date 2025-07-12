@@ -1,4 +1,6 @@
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -41,25 +43,78 @@ const BusinessTabsNavigation = () => {
       <Tab.Screen
         name="Pedidos"
         component={BusinessOrdersScreen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: true,
+          title: 'Pedidos',
+          headerTitleStyle: {
+            fontFamily: 'Poppins-SemiBold',
+            fontSize: 20,
+            color: '#f97316',
+          },
+        }}
       />
       <Tab.Screen
         name="Menú"
         component={BusinessMenuScreen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: true,
+          title: 'Menú',
+          headerTitleStyle: {
+            fontFamily: 'Poppins-SemiBold',
+            fontSize: 20,
+            color: '#f97316',
+          },
+        }}
       />
       <Tab.Screen
         name="Horarios"
         component={BusinessScheduleScreen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: true,
+          title: 'Horarios',
+          headerTitleStyle: {
+            fontFamily: 'Poppins-SemiBold',
+            fontSize: 20,
+            color: '#f97316',
+          },
+        }}
       />
       <Tab.Screen
         name="Perfil"
         component={BusinessProfileScreen}
-        options={{ headerShown: false }}
+        options={({ navigation }) => ({
+          headerShown: true,
+          title: 'Perfil',
+          headerTitleStyle: {
+            fontFamily: 'Poppins-SemiBold',
+            fontSize: 20,
+            color: '#f97316',
+          },
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={async () => {
+                await AsyncStorage.removeItem('userInfo');
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }}
+              style={{ marginRight: 16 }}
+            >
+              <Ionicons name="log-out-outline" size={25} color="#ef4444" />
+            </TouchableOpacity>
+          ),
+        })}
       />
     </Tab.Navigator>
   );
 };
 
+const styles = StyleSheet.create({
+  title: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 20,
+    color: '#f97316',
+  },
+});
 export default BusinessTabsNavigation;

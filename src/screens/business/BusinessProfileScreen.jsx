@@ -8,13 +8,27 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { updateUser } from '../../services/AuthService';
+import { updateBusiness } from '../../services/BusinessService';
+
 const BusinessProfileScreen = () => {
   const [profile, setProfile] = useState(null);
-  const [form, setForm] = useState({ fullName: '', email: '', phone: '' });
+  const [form, setForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    description: '',
+    address: '',
+    updatedAt: '',
+  });
   const [editable, setEditable] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -23,12 +37,17 @@ const BusinessProfileScreen = () => {
       try {
         const stored = await AsyncStorage.getItem('userInfo');
         if (stored) {
-          const data = JSON.parse(stored);
-          setProfile(data);
+          const user = JSON.parse(stored);
+          console.log('user ID:', user.userId);
+
+          setProfile(user);
           setForm({
-            fullName: data.fullName || '',
-            email: data.email || '',
-            phone: data.phone || '',
+            fullName: user.fullName || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            description: user.description || '',
+            address: user.address || '',
+            updatedAt: new Date().toISOString(),
           });
         }
       } catch (error) {
@@ -54,6 +73,15 @@ const BusinessProfileScreen = () => {
       const updated = { ...profile, ...form };
       await AsyncStorage.setItem('userInfo', JSON.stringify(updated));
       setProfile(updated);
+
+      await updateUser(profile.userId, {
+        fullName: updated.fullName,
+        email: updated.email,
+        phone: updated.phone,
+      });
+
+      await updateBusiness(profile.userId, updated);
+
       setEditable(false);
       Alert.alert('Actualizado', 'Los cambios han sido guardados.');
     } catch (err) {
@@ -71,61 +99,94 @@ const BusinessProfileScreen = () => {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>👤 Perfil del Negocio</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>👤 Perfil del Negocio</Text>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Nombre del negocio</Text>
-        <TextInput
-          style={[styles.input, !editable && styles.disabled]}
-          editable={editable}
-          value={form.fullName}
-          onChangeText={(text) => handleChange('fullName', text)}
-        />
-      </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Nombre del negocio</Text>
+            <TextInput
+              style={[styles.input, !editable && styles.disabled]}
+              editable={editable}
+              value={form.fullName}
+              onChangeText={(text) => handleChange('fullName', text)}
+            />
+          </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Correo electrónico</Text>
-        <TextInput
-          style={[styles.input, !editable && styles.disabled]}
-          editable={editable}
-          keyboardType="email-address"
-          value={form.email}
-          onChangeText={(text) => handleChange('email', text)}
-        />
-      </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Correo electrónico</Text>
+            <TextInput
+              style={[styles.input, !editable && styles.disabled]}
+              editable={editable}
+              keyboardType="email-address"
+              value={form.email}
+              onChangeText={(text) => handleChange('email', text)}
+            />
+          </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Teléfono</Text>
-        <TextInput
-          style={[styles.input, !editable && styles.disabled]}
-          editable={editable}
-          keyboardType="phone-pad"
-          value={form.phone}
-          onChangeText={(text) => handleChange('phone', text)}
-        />
-      </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Teléfono</Text>
+            <TextInput
+              style={[styles.input, !editable && styles.disabled]}
+              editable={editable}
+              keyboardType="phone-pad"
+              value={form.phone}
+              onChangeText={(text) => handleChange('phone', text)}
+            />
+          </View>
 
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.buttonEdit} onPress={handleEditToggle}>
-          <Ionicons
-            name={editable ? 'close' : 'create-outline'}
-            size={20}
-            color="#fff"
-          />
-          <Text style={styles.buttonText}>
-            {editable ? 'Cancelar' : 'Editar'}
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.field}>
+            <Text style={styles.label}>Descripción del negocio</Text>
+            <TextInput
+              style={[styles.input, !editable && styles.disabled]}
+              editable={editable}
+              value={form.description}
+              onChangeText={(text) => handleChange('description', text)}
+            />
+          </View>
 
-        {editable && (
-          <TouchableOpacity style={styles.buttonSave} onPress={handleSave}>
-            <Ionicons name="save-outline" size={20} color="#fff" />
-            <Text style={styles.buttonText}>Guardar</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </ScrollView>
+          <View style={styles.field}>
+            <Text style={styles.label}>Dirección del negocio</Text>
+            <TextInput
+              style={[styles.input, !editable && styles.disabled]}
+              editable={editable}
+              value={form.address}
+              onChangeText={(text) => handleChange('address', text)}
+            />
+          </View>
+
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.buttonEdit}
+              onPress={handleEditToggle}
+            >
+              <Ionicons
+                name={editable ? 'close' : 'create-outline'}
+                size={20}
+                color="#fff"
+              />
+              <Text style={styles.buttonText}>
+                {editable ? 'Cancelar' : 'Editar'}
+              </Text>
+            </TouchableOpacity>
+
+            {editable && (
+              <TouchableOpacity style={styles.buttonSave} onPress={handleSave}>
+                <Ionicons name="save-outline" size={20} color="#fff" />
+                <Text style={styles.buttonText}>Guardar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 

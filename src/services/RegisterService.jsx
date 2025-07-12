@@ -22,7 +22,7 @@ export const registerUser = async (userData) => {
     const claims = decodeJWT(result.token);
 
     if (userData.roles.includes('ROLE_BUSINESS')) {
-      await registerBusiness(claims, userData.address);
+      await registerBusiness(claims, userData);
     }
     return result;
   } catch (err) {

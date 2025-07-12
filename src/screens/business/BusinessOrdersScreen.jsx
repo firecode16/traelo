@@ -1,12 +1,5 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-} from 'react-native';
+import { View, Text, StyleSheet, StatusBar } from 'react-native';
 
-import { logoutUser } from '../../services/AuthService';
 import { COLOR } from '../../constants/Color';
 
 const BusinessOrdersScreen = ({ navigation }) => {
@@ -14,14 +7,6 @@ const BusinessOrdersScreen = ({ navigation }) => {
     <View style={styles.container}>
       <StatusBar animated={true} style="light" />
       <Text style={styles.title}>Pantalla de pedidos</Text>
-
-      <TouchableOpacity onPress={() => logoutUser(navigation)}>
-        <Text
-          style={{ color: 'red', fontFamily: 'Poppins-SemiBold', fontSize: 15 }}
-        >
-          Cerrar sesión
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 };
