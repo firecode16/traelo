@@ -1,0 +1,15 @@
+export const categories = [
+  { label: 'Pizzas', value: 'P01' },
+  { label: 'Tacos', value: 'T02' },
+  { label: 'Hamburguesas', value: 'H03' },
+  { label: 'Pastas', value: 'P04' },
+  { label: 'Pollo', value: 'P05' },
+  { label: 'Postres', value: 'P06' },
+  { label: 'Bebidas', value: 'B07' },
+  { label: 'Carnes', value: 'C08' },
+  { label: 'Guisos', value: 'G09' },
+  { label: 'Alitas', value: 'A10' },
+  { label: 'Boneless', value: 'B11' },
+  { label: 'Bisquets', value: 'B12' },
+  { label: 'Panaderia', value: 'P13' },
+];

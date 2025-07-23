@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { updateUser } from '../../services/AuthService';
-import { updateBusiness } from '../../services/BusinessService';
+import { updateBusinessByUser } from '../../services/BusinessService';
 
 const BusinessProfileScreen = () => {
   const [profile, setProfile] = useState(null);
@@ -80,7 +80,7 @@ const BusinessProfileScreen = () => {
         phone: updated.phone,
       });
 
-      await updateBusiness(profile.userId, updated);
+      await updateBusinessByUser(profile.userId, updated);
 
       setEditable(false);
       Alert.alert('Actualizado', 'Los cambios han sido guardados.');

@@ -11,12 +11,11 @@ export const getMenusByBusiness = async (businessId) => {
   }
 };
 
-export const createMenu = async (menuData) => {
+export const createMenu = async (formData) => {
   try {
     const response = await fetch(API.MENU.CREATE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(menuData),
+      body: formData,
     });
     if (!response.ok) throw new Error('Error al crear menú');
     return await response.json();
@@ -30,8 +29,7 @@ export const updateMenu = async (menuId, menuData) => {
   try {
     const response = await fetch(API.MENU.UPDATE(menuId), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(menuData),
+      body: menuData,
     });
     if (!response.ok) throw new Error('Error al actualizar menú');
     return await response.json();

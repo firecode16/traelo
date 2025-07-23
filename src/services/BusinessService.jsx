@@ -49,9 +49,9 @@ export const getBusinessByUserId = async (userId) => {
   }
 };
 
-export const updateBusiness = async (userId, businessData) => {
+export const updateBusinessByUser = async (userId, businessData) => {
   try {
-    const response = await fetch(API.BUSINESS.UPDATE(userId), {
+    const response = await fetch(API.BUSINESS.UPDATE_BUSINESS_BY_USER(userId), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -66,6 +66,27 @@ export const updateBusiness = async (userId, businessData) => {
     return await response.json();
   } catch (error) {
     console.error('updateBusiness error:', error);
+    throw error;
+  }
+};
+
+export const updateLogoBusinessById = async (businessId, logoData) => {
+  try {
+    const response = await fetch(
+      API.BUSINESS.UPDATE_LOGO_BUSINESS_BY_ID(businessId),
+      {
+        method: 'PUT',
+        body: logoData,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error('Error al actualizar el logo del negocio');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('updateLogoBusiness error:', error);
     throw error;
   }
 };
