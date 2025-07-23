@@ -7,6 +7,7 @@ import { API } from '../constants/ApiConfig';
 export const loginUser = async ({ username, password }) => {
   const response = await fetch(API.AUTH.LOGIN, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
