@@ -49,6 +49,29 @@ export const getBusinessByUserId = async (userId) => {
   }
 };
 
+export const getAllBusinesses = async (page = 0, size = 10) => {
+  try {
+    const response = await fetch(
+      `${API.BUSINESS.GET_ALL}?page=${page}&size=${size}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Error ${response.status}: ${errorBody}`);
+      throw new Error('Error al obtener todos los negocios');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('getAllBusinesses error:', error);
+    throw error;
+  }
+};
+
 export const updateBusinessByUser = async (userId, businessData) => {
   try {
     const response = await fetch(API.BUSINESS.UPDATE_BUSINESS_BY_USER(userId), {

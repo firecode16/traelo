@@ -1,159 +1,229 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   Image,
   FlatList,
-  TouchableOpacity,
+  TouchableHighlight,
   StyleSheet,
-  SafeAreaView,
+  Dimensions,
+  Modal,
 } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import AntDesign from '@expo/vector-icons/AntDesign';
+import { Ionicons } from '@expo/vector-icons';
 import { COLOR } from '../../constants/Color';
 
+const { width, height } = Dimensions.get('window');
+
 const BusinessDetailScreen = ({ route, navigation }) => {
-  const { item } = route.params; // negocio elegido
-  const [cart, setCart] = useState([]);
+  const { business } = route.params;
+  const [cartItems, setCartItems] = useState({});
+  const [selectedMenuItem, setSelectedMenuItem] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  const [cartQuantities, setCartQuantities] = useState({});
+  useEffect(() => {}, []);
 
-  const increaseQuantity = (product) => {
-    setCartQuantities((prev) => {
-      const newQty = (prev[product.menuId] || 0) + 1;
+  const handleAddToCart = (menuId) => {
+    setCartItems((prev) => ({
+      ...prev,
+      [menuId]: (prev[menuId] || 0) + 1,
+    }));
+  };
 
-      // actualizar cart real (solo si quieres que exista)
-      const updatedCart = [...cart];
-      const index = updatedCart.findIndex((p) => p.menuId === product.menuId);
-
-      if (index !== -1) {
-        updatedCart[index].quantity = newQty;
-      } else {
-        updatedCart.push({ ...product, quantity: newQty });
-      }
-
-      setCart(updatedCart);
-
-      return { ...prev, [product.menuId]: newQty };
+  const handleRemoveFromCart = (menuId) => {
+    setCartItems((prev) => {
+      if (!prev[menuId]) return prev;
+      const updated = { ...prev };
+      updated[menuId]--;
+      if (updated[menuId] <= 0) delete updated[menuId];
+      return updated;
     });
   };
 
-  const decreaseQuantity = (product) => {
-    setCartQuantities((prev) => {
-      const currentQty = prev[product.menuId] || 0;
-
-      if (currentQty <= 1) {
-        // eliminar del cart y cantidades
-        const updatedCart = cart.filter((p) => p.menuId !== product.menuId);
-        setCart(updatedCart);
-
-        const copy = { ...prev };
-        delete copy[product.menuId];
-        return copy;
-      }
-
-      // reducir cantidad
-      const newQty = currentQty - 1;
-      const updatedCart = [...cart];
-      const index = updatedCart.findIndex((p) => p.menuId === product.menuId);
-
-      if (index !== -1) {
-        updatedCart[index].quantity = newQty;
-        setCart(updatedCart);
-      }
-
-      return { ...prev, [product.menuId]: newQty };
-    });
-  };
-
-  /* --- Header con la info fija del negocio --- */
-  const renderHeader = () => (
-    <View>
-      <Image source={item.photo} style={styles.image} />
-
-      <Text style={styles.title}>{item.name}</Text>
-      <View style={{ flexDirection: 'row' }}>
-        <Ionicons name="storefront-outline" size={21} color="black" />
-        <Text style={styles.subtitle}>{item.businessName}</Text>
-      </View>
-      <View style={{ flexDirection: 'row' }}>
-        <AntDesign name="clockcircleo" size={20} color="black" />
-        <Text style={styles.subtitle}>Abierto: {item.schedule}</Text>
-      </View>
-      <Text style={styles.sectionTitle}>Menú</Text>
-    </View>
-  );
-
-  /* --- cada producto --- */
-  const renderProduct = ({ item: product }) => (
-    <View style={styles.productCard}>
-      {/* imagen del producto */}
-      <Image source={product.photo} style={styles.productImage} />
-
-      {/* info del producto */}
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productPrice}>${product.price}</Text>
-      </View>
-
-      {/* botón mas/menos */}
-      <View style={styles.quantityContainer}>
-        <TouchableOpacity
-          onPress={() => decreaseQuantity(product)}
-          style={styles.qtyButton}
-        >
-          <Text style={styles.qtyButtonText}>−</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.qtyText}>
-          {cartQuantities[product.menuId] || 0}
-        </Text>
-
-        <TouchableOpacity
-          onPress={() => increaseQuantity(product)}
-          style={styles.qtyButton}
-        >
-          <Text style={styles.qtyButtonText}>+</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  /* --- footer con botón de carrito (solo si hay productos) --- */
-  const renderFooter = () =>
-    cart.length > 0 && (
-      <TouchableOpacity
-        style={styles.cartButton}
-        onPress={() => navigation.navigate('Cart', { cart, item })}
-      >
-        <View style={{ flexDirection: 'row' }}>
-          <Ionicons
-            name="cart-outline"
-            size={24}
-            color={COLOR.white}
-            style={{ right: 5 }}
-          />
-          <Text style={styles.cartButtonText}>Ver Carrito ({cart.length})</Text>
-        </View>
-      </TouchableOpacity>
+  const getTotalItems = (items) => {
+    if (!items) return 0;
+    return Object.values(items).reduce(
+      (total, quantity) => total + quantity,
+      0,
     );
+  };
+
+  const renderMenuItem = ({ item }) => {
+    const quantity = cartItems[item.menuId] || 0;
+
+    return (
+      <View style={styles.menuItem}>
+        <TouchableHighlight
+          onPress={() => {
+            setSelectedMenuItem(item);
+            setModalVisible(true);
+          }}
+          underlayColor="#ececec"
+        >
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.menuImage}
+            resizeMode="cover"
+          />
+        </TouchableHighlight>
+        <View style={styles.menuInfo}>
+          <Text style={styles.menuName}>{item.name}</Text>
+          <Text style={styles.menuDescription}>{item.description}</Text>
+          <Text style={styles.menuPrice}>${item.price.toFixed(2)}</Text>
+        </View>
+        <View style={styles.quantityControls}>
+          <TouchableHighlight
+            style={styles.quantityButton}
+            underlayColor="#ecececff"
+            onPress={() => handleRemoveFromCart(item.menuId)}
+          >
+            <Ionicons name="remove-circle-outline" size={32} color="#f44336" />
+          </TouchableHighlight>
+
+          <View style={styles.quantityCircle}>
+            <Text style={styles.quantityText}>{quantity}</Text>
+          </View>
+
+          <TouchableHighlight
+            style={styles.quantityButton}
+            underlayColor="#ecececff"
+            onPress={() => handleAddToCart(item.menuId)}
+          >
+            <Ionicons name="add-circle-outline" size={32} color="#4CAF50" />
+          </TouchableHighlight>
+        </View>
+      </View>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={item.menu}
-        keyExtractor={(product) => product.menuId.toString()}
-        renderItem={renderProduct}
-        ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderFooter}
-        contentContainerStyle={{
-          paddingHorizontal: 12,
-          paddingTop: 10,
-          paddingBottom: 10,
-        }}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
+    <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Image
+          source={{ uri: business.logoUrl }}
+          style={styles.coverImage}
+          resizeMode="cover"
+        />
+        <View style={styles.infoContainer}>
+          <View style={styles.headerRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons
+                name="business-outline"
+                size={20}
+                color="#555"
+                style={styles.icon}
+              />
+              <Text style={styles.businessName}>{business.fullName}</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons
+                name={
+                  business.scheduler?.isActive
+                    ? 'checkmark-circle'
+                    : 'close-circle'
+                }
+                size={20}
+                color={business.scheduler?.isActive ? '#4CAF50' : '#f44336'}
+              />
+              <Text style={styles.statusText}>
+                {business.scheduler?.isActive ? ' Abierto' : ' Cerrado'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.rowInfo}>
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color="#555"
+              style={styles.icon}
+            />
+            <Text style={styles.businessDescription}>
+              {business.description}
+            </Text>
+          </View>
+
+          {business.address && (
+            <View style={styles.rowInfo}>
+              <Ionicons name="location-outline" size={20} color="#555" />
+              <Text style={styles.addressText}> {business.address}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Sección scrollable sólo para menú */}
+      <View style={styles.menuContainer}>
+        <Text style={styles.sectionTitle}>Menú</Text>
+        <FlatList
+          data={business.menus}
+          renderItem={renderMenuItem}
+          keyExtractor={(item) => item.menuId.toString()}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
+
+      {getTotalItems(cartItems) > 0 && (
+        <TouchableHighlight
+          underlayColor="#e0e0e0"
+          style={styles.floatingCartButton}
+          onPress={() =>
+            navigation.navigate('Cart', {
+              cartItems,
+              business,
+              onGoBack: (updatedCartItems) => {
+                setCartItems(updatedCartItems); // actualiza el estado local
+              },
+            })
+          }
+        >
+          <View>
+            <Ionicons name="cart-outline" size={28} color="#fff" />
+            <View style={styles.fabBadge}>
+              <Text style={styles.fabBadgeText}>
+                {getTotalItems(cartItems)}
+              </Text>
+            </View>
+          </View>
+        </TouchableHighlight>
+      )}
+
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedMenuItem && (
+              <>
+                <Image
+                  source={{ uri: selectedMenuItem.imageUrl }}
+                  style={styles.modalImage}
+                  resizeMode="cover"
+                />
+                <Text style={styles.modalTitle}>{selectedMenuItem.name}</Text>
+                <Text style={styles.modalDescription}>
+                  {selectedMenuItem.description}
+                </Text>
+                <Text style={styles.modalPrice}>
+                  💲{selectedMenuItem.price}
+                </Text>
+
+                <TouchableHighlight
+                  style={styles.okButton}
+                  underlayColor="#c5c6c5ff"
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.okButtonText}>OK</Text>
+                </TouchableHighlight>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 };
 
@@ -162,117 +232,227 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLOR.lightGray,
   },
-
-  /* header */
-  image: {
-    width: '100%',
-    height: 250,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  title: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 18,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontFamily: 'Poppins-Light',
-    marginLeft: 5,
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 4,
-    lineHeight: 25,
-  },
-  sectionTitle: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 18,
-    marginVertical: 12,
-  },
-
-  /* product card */
-  productCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: COLOR.white,
+  headerContainer: {},
+  coverImage: {
+    width: width - 20,
+    height: 180,
+    marginHorizontal: 10,
+    marginTop: 12,
     marginBottom: 10,
     borderRadius: 12,
-    gap: 10,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 2,
   },
 
-  productImage: {
-    width: 75,
-    height: 70,
-    borderRadius: 8,
-    backgroundColor: COLOR.lightGray,
+  infoContainer: {
+    paddingHorizontal: 12,
+    marginBottom: 8,
   },
-
-  productInfo: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 5,
+  businessName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
-
-  productName: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 13,
-    color: '#6e6e6e',
-  },
-
-  productPrice: {
-    fontFamily: 'Poppins-SemiBold',
+  businessDescription: {
     fontSize: 14,
-    color: '#383838',
+    color: '#666',
+    marginBottom: 6,
+  },
+  rowInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  addressText: {
+    fontSize: 13,
+    color: '#555',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    marginLeft: 10,
+    fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
+  menuContainer: {
+    flex: 1,
+    paddingHorizontal: 0,
+  },
+
+  menuItem: {
+    flexDirection: 'row',
+    marginHorizontal: 10,
+    marginBottom: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  menuImage: {
+    width: 80,
+    height: 80,
+  },
+  menuInfo: {
+    flex: 1,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+  },
+  menuName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  menuDescription: {
+    fontSize: 12,
+    color: '#666',
+  },
+  menuPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
     marginTop: 4,
   },
 
-  quantityContainer: {
+  quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#eee',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    gap: 8,
+    paddingRight: 10,
   },
-
-  qtyButton: {
-    backgroundColor: '#E63946',
-    width: 28,
-    height: 28,
+  quantityButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
+    borderRadius: 20,
+  },
+  quantityCircle: {
+    marginHorizontal: 5,
+    backgroundColor: '#51b454ff',
+    borderRadius: 20,
+    minWidth: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
-
-  qtyButtonText: {
-    fontFamily: 'Poppins-SemiBold',
-    color: '#fff',
-    fontSize: 18,
-  },
-
-  qtyText: {
-    minWidth: 20,
-    textAlign: 'center',
-    fontSize: 16,
+  quantityText: {
+    fontSize: 13,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
+    textAlign: 'center',
   },
 
-  /* footer */
-  cartButton: {
-    backgroundColor: '#F97316',
-    padding: 12,
-    borderRadius: 20,
+  floatingCartButton: {
+    position: 'absolute',
+    top: 309,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLOR.orange,
+    justifyContent: 'center',
     alignItems: 'center',
-    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+    zIndex: 99,
   },
-  cartButtonText: {
-    fontFamily: 'Poppins-SemiBold',
+  fabBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#4CAF50',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+
+  icon: {
+    marginRight: 6,
+    bottom: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  modalContent: {
+    width: '95%',
+    maxHeight: '85%',
+    backgroundColor: '#f0f1f1ff',
+    borderRadius: 16,
+    padding: 15,
+    alignItems: 'center',
+    elevation: 4,
+  },
+  modalImage: {
+    width: '100%',
+    height: 330,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalDescription: {
     fontSize: 16,
-    color: COLOR.white,
+    color: '#555',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalPrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#2e7d32',
+  },
+  okButton: {
+    marginTop: 10,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  okButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -2,10 +2,10 @@ import CATEGORY from '../constants/Category';
 import BUSINESS from '../constants/Business';
 
 export const INIT_CURRENT_LOCATION = {
-  streetName: 'Ixhuatlan de Madero',
+  streetName: 'Ixhuatlán de Madero, Veracruz, México',
   gps: {
-    latitude: 1.5496614931250685,
-    longitude: 110.36381866919922,
+    latitude: 20.6888,
+    longitude: -98.0118,
   },
 };
 

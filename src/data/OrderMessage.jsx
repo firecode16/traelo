@@ -1,7 +1,7 @@
 export const generateOrderMessage = (
   businessName,
   customerName,
-  cart,
+  cartState,
   location,
 ) => {
   let message = `📦 *Nuevo Pedido vía Tráelo* 🛵\n\n`;
@@ -20,12 +20,12 @@ export const generateOrderMessage = (
 
   message += `\n🧾 *Pedido:*\n`;
 
-  cart.forEach((item, index) => {
+  cartState.forEach((item, index) => {
     const subtotal = item.price * item.quantity;
-    message += `${index + 1}. ${item.name} ×${item.quantity} - $${subtotal}\n`;
+    message += `${index + 1}. 🍽️ ${item.name} × ${item.quantity} - $${subtotal}\n`;
   });
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = cartState.reduce((sum, item) => sum + item.price * item.quantity, 0);
   message += `\n💰 *Total: $${total}*\n\n📲 Enviado desde la app Tráelo`;
 
   return encodeURIComponent(message); // para enviar por URL

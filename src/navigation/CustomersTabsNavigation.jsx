@@ -1,32 +1,36 @@
+import { TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import AntDesign from '@expo/vector-icons/AntDesign';
 
 import HomeScreen from '../screens/user/HomeScreen';
 import ProfileScreen from '../screens/user/ProfileScreen';
-
 import SearchBar from '../components/SearchBar';
-import { COLOR } from '../constants/Color';
 
 const Tab = createBottomTabNavigator();
 
 const CustomersTabsNavigation = ({ navigation }) => {
   return (
     <Tab.Navigator
-      initialRouteName="Inicio"
-      screenOptions={{
-        tabBarActiveTintColor: COLOR.red,
-        tabBarInactiveTintColor: COLOR.gray,
-        tabBarOptions: {
-          showLabel: false,
-          style: { borderTopColor: 'transparent' },
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ color, size }) => {
+          let iconName;
+
+          switch (route.name) {
+            case 'Inicio':
+              iconName = 'home-outline';
+              break;
+            case 'Perfil':
+              iconName = 'person-outline';
+              break;
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarLabelStyle: {
-          fontFamily: 'Poppins-SemiBold',
-          fontSize: 12,
-          lineHeight: 22,
-        },
-      }}
+        tabBarActiveTintColor: '#F97316',
+        tabBarInactiveTintColor: 'gray',
+        headerShown: false,
+      })}
     >
       <Tab.Screen
         name="Inicio"
@@ -34,31 +38,41 @@ const CustomersTabsNavigation = ({ navigation }) => {
         options={{
           headerShown: true,
           title: 'Inicio',
-          headerBackVisible: false, // automatic hidde if exist
           headerTitle: () => <SearchBar />,
           headerTitleAlign: 'center',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={25}
-              color={focused ? COLOR.red : COLOR.gray}
-            />
-          ),
+          headerTitleStyle: {
+            fontFamily: 'Poppins-SemiBold',
+            fontSize: 20,
+            color: '#f97316',
+          },
         }}
       />
       <Tab.Screen
         name="Perfil"
         component={ProfileScreen}
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <AntDesign
-              name={focused ? 'user' : 'user'}
-              size={25}
-              color={focused ? COLOR.red : COLOR.gray}
-            />
+        options={({ navigation }) => ({
+          headerShown: true,
+          title: 'Perfil',
+          headerTitleStyle: {
+            fontFamily: 'Poppins-SemiBold',
+            fontSize: 20,
+            color: '#f97316',
+          },
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={async () => {
+                await AsyncStorage.removeItem('userInfo');
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }}
+              style={{ marginRight: 16 }}
+            >
+              <Ionicons name="log-out-outline" size={25} color="#ef4444" />
+            </TouchableOpacity>
           ),
-        }}
+        })}
       />
     </Tab.Navigator>
   );

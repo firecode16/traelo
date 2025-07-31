@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Alert,
   Image,
+  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
@@ -252,6 +253,7 @@ const BusinessMenuScreen = () => {
       return;
     }
 
+    setLoading(true);
     try {
       if (isNewLogoSelected) {
         // ✅ Solo si pasa la validación, se actualiza el logo
@@ -291,6 +293,8 @@ const BusinessMenuScreen = () => {
       console.error('Error al guardar menú:', error);
       Alert.alert('Error', 'No se pudo guardar el menú. Inténtalo de nuevo.');
       return;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -301,10 +305,12 @@ const BusinessMenuScreen = () => {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
+          setLoading(true);
           await deleteMenu(id);
           console.info('Menú eliminado con ID:', id);
           const updatedMenus = await getMenusByBusiness(businessId);
           setMenus(updatedMenus);
+          setLoading(false);
         },
       },
     ]);
@@ -386,7 +392,7 @@ const BusinessMenuScreen = () => {
 
       <FlatList
         data={menus}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.menuId.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
@@ -394,91 +400,107 @@ const BusinessMenuScreen = () => {
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingMenuId ? 'Editar Menú' : 'Agregar producto'}
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>
+                {editingMenuId ? 'Editar Menú' : 'Agregar producto'}
+              </Text>
 
-            <TextInput
-              placeholder="Nombre del producto"
-              value={form.name}
-              onChangeText={(text) => setForm({ ...form, name: text })}
-              style={[styles.input, invalidFields.name && styles.invalidInput]}
-            />
-            <TextInput
-              placeholder="Descripción"
-              value={form.description}
-              onChangeText={(text) => setForm({ ...form, description: text })}
-              style={[styles.input, invalidFields.name && styles.invalidInput]}
-            />
-            <TextInput
-              placeholder="Precio"
-              keyboardType="numeric"
-              value={form.price}
-              onChangeText={(text) => setForm({ ...form, price: text })}
-              style={[styles.input, invalidFields.name && styles.invalidInput]}
-            />
+              <TextInput
+                placeholder="Nombre del producto"
+                value={form.name}
+                onChangeText={(text) => setForm({ ...form, name: text })}
+                style={[
+                  styles.input,
+                  invalidFields.name && styles.invalidInput,
+                ]}
+              />
+              <TextInput
+                placeholder="Descripción"
+                value={form.description}
+                onChangeText={(text) => setForm({ ...form, description: text })}
+                style={[
+                  styles.input,
+                  invalidFields.name && styles.invalidInput,
+                ]}
+              />
+              <TextInput
+                placeholder="Precio"
+                keyboardType="numeric"
+                value={form.price}
+                onChangeText={(text) => setForm({ ...form, price: text })}
+                style={[
+                  styles.input,
+                  invalidFields.name && styles.invalidInput,
+                ]}
+              />
 
-            <Text style={styles.label}>Categoría:</Text>
-            <View
-              style={[
-                styles.pickerContainer,
-                invalidFields.category && styles.invalidInput,
-              ]}
-            >
-              <Picker
-                selectedValue={form.category}
-                onValueChange={(value) => setForm({ ...form, category: value })}
-                style={styles.picker}
+              <Text style={styles.label}>Categoría:</Text>
+              <View
+                style={[
+                  styles.pickerContainer,
+                  invalidFields.category && styles.invalidInput,
+                ]}
               >
-                <Picker.Item
-                  label="Selecciona una categoría..."
-                  value=""
-                  enabled={false}
-                />
-                {categories.map((item) => (
+                <Picker
+                  selectedValue={form.category}
+                  onValueChange={(value) =>
+                    setForm({ ...form, category: value })
+                  }
+                  style={styles.picker}
+                >
                   <Picker.Item
-                    key={item.value}
-                    label={item.label}
-                    value={item.value}
+                    label="Selecciona una categoría..."
+                    value=""
+                    enabled={false}
                   />
-                ))}
-              </Picker>
-            </View>
+                  {categories.map((item) => (
+                    <Picker.Item
+                      key={item.value}
+                      label={item.label}
+                      value={item.value}
+                    />
+                  ))}
+                </Picker>
+              </View>
 
-            {/* Picker de imagen */}
-            <TouchableOpacity
-              onPress={pickImage}
-              style={[
-                styles.imagePicker,
-                invalidFields.image && styles.invalidInput,
-              ]}
-            >
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-              ) : (
-                <View style={styles.placeholder}>
-                  <Ionicons name="image-outline" size={48} color="#ccc" />
-                  <Text style={styles.placeholderText}>
-                    Seleccionar imagen del producto
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* botones */}
-            <View style={styles.modalActions}>
+              {/* Picker de imagen */}
               <TouchableOpacity
-                onPress={() => {
-                  setModalVisible(false);
-                  resetForm();
-                }}
+                onPress={pickImage}
+                style={[
+                  styles.imagePicker,
+                  invalidFields.image && styles.invalidInput,
+                ]}
               >
-                <Text style={styles.cancel}>Cancelar</Text>
+                {imageUri ? (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.imagePreview}
+                  />
+                ) : (
+                  <View style={styles.placeholder}>
+                    <Ionicons name="image-outline" size={48} color="#ccc" />
+                    <Text style={styles.placeholderText}>
+                      Seleccionar imagen del producto
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleSave}>
-                <Text style={styles.save}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
+
+              {/* botones */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalVisible(false);
+                    resetForm();
+                  }}
+                >
+                  <Text style={styles.cancel}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSave}>
+                  <Text style={styles.save}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -531,7 +553,8 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: COLOR.white,
     padding: 20,
-    width: '85%',
+    width: '90%',
+    maxHeight: '90%',
     borderRadius: 10,
   },
   modalTitle: {

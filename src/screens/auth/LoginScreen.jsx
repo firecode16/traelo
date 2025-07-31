@@ -43,7 +43,7 @@ const LoginScreen = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      const token = await loginUser({ username: email, password });
+      const token = await loginUser({ username: email.trim(), password });
       await AsyncStorage.setItem('authToken', token);
 
       const userData = await getUserInfo(token);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,8 @@ import {
   StyleSheet,
   Linking,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapModal from '../../components/MapModal';
 import * as Location from 'expo-location';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -17,59 +17,93 @@ import { COLOR } from '../../constants/Color';
 import { generateOrderMessage } from '../../data/OrderMessage';
 
 const CartScreen = ({ route, navigation }) => {
-  const { cart, item } = route.params;
+  const { cartItems = {}, business, onGoBack } = route.params;
+  const [profile, setProfile] = useState(null);
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const [cartState, setCartState] = useState(() => {
+    if (!business?.menus || !cartItems) return [];
+    return business.menus
+      .filter((menu) => cartItems[menu.menuId])
+      .map((menu) => ({
+        ...menu,
+        quantity: cartItems[menu.menuId],
+      }));
+  });
 
-  /** loading */
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('userInfo');
+        if (stored) {
+          const user = JSON.parse(stored);
+          console.log('Customer name:', user.fullName);
+
+          setProfile(user);
+        }
+      } catch (error) {
+        console.error('Error cargando perfil:', error);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (onGoBack) {
+        const updatedCart = {};
+        cartState.forEach((item) => {
+          if (item.quantity > 0) {
+            updatedCart[item.menuId] = item.quantity;
+          }
+        });
+        onGoBack(updatedCart);
+      }
+    };
+  }, [cartState]);
+
+  const totalCantidad = cartState.reduce((sum, item) => sum + item.quantity, 0);
+
+  const totalPrecio = cartState.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-
-  /** map location */
   const [showMapModal, setShowMapModal] = useState(false);
   const [location, setLocation] = useState(null);
   const [markerCoords, setMarkerCoords] = useState(null);
-
-  /** order cart */
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
-
   const [deliveryLocation, setDeliveryLocation] = useState(null);
   const [showLocationWarning, setShowLocationWarning] = useState(false);
 
   const openMapModal = async () => {
-    // show loading
     setIsLoadingLocation(true);
-
     try {
-      // Si ya tenemos ubicación guardada, no la volvemos a pedir
       if (!location) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          alert('Permiso de ubicación denegado');
+          alert('Permiso de ubicaci\u00f3n denegado');
           setIsLoadingLocation(false);
           return;
         }
-
         const loc = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Lowest,
           maximumAge: 30000,
         });
-
         const coords = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
         };
-
         setLocation(coords);
         setMarkerCoords(coords);
       }
-
-      // show modal
       setShowMapModal(true);
     } catch (error) {
-      console.warn('Error al obtener ubicación:', error);
-      alert('No se pudo obtener tu ubicación');
+      console.warn('Error al obtener ubicaci\u00f3n:', error);
+      alert('No se pudo obtener tu ubicaci\u00f3n');
     } finally {
       setIsLoadingLocation(false);
     }
@@ -81,28 +115,31 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const confirmRemove = () => {
-    const updatedCart = cart.filter(
+    const updatedCart = cartState.filter(
       (item) => item.menuId !== selectedProductId,
     );
-    navigation.setParams({ cart: updatedCart });
+    setCartState(updatedCart);
     setShowRemoveModal(false);
   };
 
   const confirmOrder = () => {
     setShowConfirmModal(false);
     sendOrderToWhatsApp();
-    navigation.popToTop(); // simula regreso a inicio
+    navigation.popToTop();
   };
 
   const sendOrderToWhatsApp = () => {
-    const businessPhone = item.cellPhone; // número de WhatsApp del negocio
+    console.log('Enviando pedido a WhatsApp...', business.phone);
+    const businessPhone = business.phone || '000000000';
     const locationUrl = `https://www.google.com/maps?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`;
+
     const message = generateOrderMessage(
-      item.businessName,
-      'Nombre cliente',
-      cart,
+      business.fullName,
+      profile?.fullName || 'Cliente',
+      cartState,
       locationUrl,
     );
+
     const url = `https://wa.me/${businessPhone}?text=${message}`;
 
     Linking.openURL(url).catch((err) =>
@@ -115,10 +152,10 @@ const CartScreen = ({ route, navigation }) => {
       <View style={{ flex: 1 }}>
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemDetails}>
-          {item.quantity} × ${item.price} = ${item.price * item.quantity}
+          {item.quantity} × ${item.price.toFixed(2)} = $
+          {(item.price * item.quantity).toFixed(2)}
         </Text>
       </View>
-
       <TouchableOpacity
         onPress={() => openRemoveModal(item.menuId)}
         style={styles.removeButton}
@@ -130,69 +167,87 @@ const CartScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={cart}
-        keyExtractor={(item) => item.menuId.toString()}
-        renderItem={renderItem}
-        ListFooterComponent={
-          <>
-            <Text style={styles.totalText}>Total: ${total}</Text>
+      {cartState.length === 0 ? (
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <Text style={{ fontSize: 18, color: COLOR.gray }}>
+            Tu carrito está vacío
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={cartState}
+          keyExtractor={(item) => item.menuId.toString()}
+          renderItem={renderItem}
+          ListFooterComponent={
+            <>
+              <Text style={styles.totalCantidadText}>
+                Total de productos: {totalCantidad}
+              </Text>
+              <Text style={styles.totalPrecioText}>
+                Total: ${totalPrecio.toFixed(2)}
+              </Text>
 
-            <TouchableOpacity
-              style={styles.locationButton}
-              onPress={openMapModal}
-            >
-              <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                <Entypo
-                  name="location"
-                  size={22}
-                  color={deliveryLocation ? COLOR.orange : COLOR.lightGray}
-                  style={{ right: 10 }}
-                />
-                <Text style={styles.locationButtonText}>
-                  {deliveryLocation ? (
-                    <Text style={styles.selectedLocationText}>
-                      Ubicación seleccionada
-                    </Text>
-                  ) : (
-                    'Seleccionar ubicación de entrega'
-                  )}
-                </Text>
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={openMapModal}
+              >
+                <View
+                  style={{ flexDirection: 'row', justifyContent: 'center' }}
+                >
+                  <Entypo
+                    name="location"
+                    size={22}
+                    color={deliveryLocation ? COLOR.orange : COLOR.lightGray}
+                    style={{ right: 10 }}
+                  />
+                  <Text style={styles.locationButtonText}>
+                    {deliveryLocation ? (
+                      <Text style={styles.selectedLocationText}>
+                        Ubicación seleccionada
+                      </Text>
+                    ) : (
+                      'Seleccionar ubicación de entrega'
+                    )}
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-            {isLoadingLocation && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#22C55E" />
-                <Text style={styles.loadingText}>Obteniendo ubicación...</Text>
-              </View>
-            )}
+              {isLoadingLocation && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#22C55E" />
+                  <Text style={styles.loadingText}>
+                    Obteniendo ubicación...
+                  </Text>
+                </View>
+              )}
 
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={() => {
-                if (!deliveryLocation) {
-                  setShowLocationWarning(true);
-                } else {
-                  setShowConfirmModal(true);
-                }
-              }}
-            >
-              <View style={{ flexDirection: 'row' }}>
-                <Ionicons
-                  name="logo-whatsapp"
-                  size={24}
-                  color={COLOR.white}
-                  style={{ right: 10 }}
-                />
-                <Text style={styles.confirmButtonText}>Confirmar pedido</Text>
-              </View>
-            </TouchableOpacity>
-          </>
-        }
-      />
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={() => {
+                  if (!deliveryLocation) {
+                    setShowLocationWarning(true);
+                  } else {
+                    setShowConfirmModal(true);
+                  }
+                }}
+              >
+                <View style={{ flexDirection: 'row' }}>
+                  <Ionicons
+                    name="logo-whatsapp"
+                    size={24}
+                    color={COLOR.white}
+                    style={{ right: 10 }}
+                  />
+                  <Text style={styles.confirmButtonText}>Confirmar pedido</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          }
+        />
+      )}
 
-      {/* Modal: Map */}
       <MapModal
         visible={showMapModal}
         onClose={() => setShowMapModal(false)}
@@ -204,17 +259,14 @@ const CartScreen = ({ route, navigation }) => {
             setDeliveryLocation(markerCoords);
             setShowMapModal(false);
           }
-          console.log('Ubicación confirmada:', markerCoords);
         }}
       />
 
-      {/* Modal: Confirmar pedido */}
       {showConfirmModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Confirmar pedido</Text>
             <Text style={styles.modalText}>¿Deseas confirmar tu pedido?</Text>
-
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
                 <Text style={styles.modalCancel}>Cancelar</Text>
@@ -227,7 +279,6 @@ const CartScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      {/* Modal: Eliminar producto */}
       {showRemoveModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -235,7 +286,6 @@ const CartScreen = ({ route, navigation }) => {
             <Text style={styles.modalText}>
               ¿Seguro que deseas eliminar este producto del carrito?
             </Text>
-
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setShowRemoveModal(false)}>
                 <Text style={styles.modalCancel}>Cancelar</Text>
@@ -248,7 +298,6 @@ const CartScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      {/** Modal: show location warning */}
       {showLocationWarning && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -257,7 +306,6 @@ const CartScreen = ({ route, navigation }) => {
               Por favor selecciona la ubicación de entrega antes de confirmar tu
               pedido.
             </Text>
-
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setShowLocationWarning(false)}>
                 <Text style={styles.modalCancel}>Entendido</Text>
@@ -311,11 +359,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  totalText: {
+  totalCantidadText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 15,
+    textAlign: 'right',
+    marginVertical: 20,
+    borderTopWidth: 1,
+    borderColor: '#ccc',
+    paddingTop: 10,
+  },
+  totalPrecioText: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 18,
     textAlign: 'right',
-    marginVertical: 20,
+    marginBottom: 25,
   },
 
   confirmButton: {

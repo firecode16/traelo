@@ -69,6 +69,7 @@ const BusinessProfileScreen = () => {
   };
 
   const handleSave = async () => {
+    setLoading(true);
     try {
       const updated = { ...profile, ...form };
       await AsyncStorage.setItem('userInfo', JSON.stringify(updated));
@@ -86,6 +87,8 @@ const BusinessProfileScreen = () => {
       Alert.alert('Actualizado', 'Los cambios han sido guardados.');
     } catch (err) {
       Alert.alert('Error', 'No se pudieron guardar los cambios.');
+    } finally {
+      setLoading(false);
     }
   };
 
