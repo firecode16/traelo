@@ -29,4 +29,7 @@ export const API = {
     UPDATE: (schedulerId) => `${BASE_URL}/schedules/update/${schedulerId}`,
     GET_BY_BUSINESS: (businessId) => `${BASE_URL}/schedules/getSchedulesByBusiness/${businessId}`,
   },
+  ORDERS: {
+    CREATE: `${BASE_URL}/orders/createWithItems`,
+  },
 };

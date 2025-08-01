@@ -21,6 +21,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Entypo from '@expo/vector-icons/Entypo';
 import { COLOR } from '../../constants/Color';
 import { generateOrderMessage } from '../../data/OrderMessage';
+import { buildJsonOrder } from '../../util/OrderUtils';
+import { createOrder } from '../../services/OrdersService';
 
 const CartScreen = ({ route, navigation }) => {
   const { cartItems = {}, business, onGoBack } = route.params;
@@ -127,10 +129,30 @@ const CartScreen = ({ route, navigation }) => {
     setShowRemoveModal(false);
   };
 
-  const confirmOrder = () => {
+  const confirmOrder = async () => {
     setShowConfirmModal(false);
-    sendOrderToWhatsApp();
-    navigation.popToTop();
+
+    try {
+      const orderPayload = {
+        orderId: Date.now().toString(),
+        businessId: business.businessId,
+        customerId: profile?.userId,
+        address: `https://maps.google.com?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`,
+        notes: customerNotes,
+        deliveryMethod: deliveryMethod,
+        jsonOrder: buildJsonOrder(cartState),
+        totalPrice: totalPrecio.toFixed(2),
+        createdAt: new Date().toISOString(),
+      };
+
+      await createOrder(orderPayload);
+      console.info('Pedido enviado exitosamente:', orderPayload.orderId);
+      sendOrderToWhatsApp();
+      navigation.popToTop();
+    } catch (error) {
+      console.error('Error al enviar el pedido:', error);
+      alert('Error al enviar el pedido.');
+    }
   };
 
   const sendOrderToWhatsApp = () => {
