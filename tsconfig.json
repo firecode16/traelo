@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["./src", "./App.tsx"],
+  "include": ["src", "App.*", "index.*"],
   "exclude": ["node_modules", "babel.config.js", "metro.config.js"],
   "extends": "expo-module-scripts/tsconfig.base"
 }
