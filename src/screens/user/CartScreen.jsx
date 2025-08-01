@@ -4,9 +4,15 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
+  TouchableHighlight,
   StyleSheet,
   Linking,
+  TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapModal from '../../components/MapModal';
@@ -19,6 +25,8 @@ import { generateOrderMessage } from '../../data/OrderMessage';
 const CartScreen = ({ route, navigation }) => {
   const { cartItems = {}, business, onGoBack } = route.params;
   const [profile, setProfile] = useState(null);
+  const [customerNotes, setCustomerNotes] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState('A domicilio');
 
   const [cartState, setCartState] = useState(() => {
     if (!business?.menus || !cartItems) return [];
@@ -64,10 +72,7 @@ const CartScreen = ({ route, navigation }) => {
 
   const totalCantidad = cartState.reduce((sum, item) => sum + item.quantity, 0);
 
-  const totalPrecio = cartState.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
+  const totalPrecio = cartState.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
@@ -138,6 +143,8 @@ const CartScreen = ({ route, navigation }) => {
       profile?.fullName || 'Cliente',
       cartState,
       locationUrl,
+      customerNotes,
+      deliveryMethod,
     );
 
     const url = `https://wa.me/${businessPhone}?text=${message}`;
@@ -156,165 +163,235 @@ const CartScreen = ({ route, navigation }) => {
           {(item.price * item.quantity).toFixed(2)}
         </Text>
       </View>
-      <TouchableOpacity
+      <TouchableHighlight
+        underlayColor="#ccc"
         onPress={() => openRemoveModal(item.menuId)}
         style={styles.removeButton}
       >
         <Text style={styles.removeButtonText}>Eliminar</Text>
-      </TouchableOpacity>
+      </TouchableHighlight>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      {cartState.length === 0 ? (
-        <View
-          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-        >
-          <Text style={{ fontSize: 18, color: COLOR.gray }}>
-            Tu carrito está vacío
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={cartState}
-          keyExtractor={(item) => item.menuId.toString()}
-          renderItem={renderItem}
-          ListFooterComponent={
-            <>
-              <Text style={styles.totalCantidadText}>
-                Total de productos: {totalCantidad}
-              </Text>
-              <Text style={styles.totalPrecioText}>
-                Total: ${totalPrecio.toFixed(2)}
-              </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <View style={styles.container}>
+        {cartState.length === 0 ? (
+          <View
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 18, color: COLOR.gray }}>
+              Tu carrito está vacío
+            </Text>
+          </View>
+        ) : (
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <FlatList
+              data={cartState}
+              keyExtractor={(item) => item.menuId.toString()}
+              renderItem={renderItem}
+              contentContainerStyle={{ paddingBottom: 30 }}
+              keyboardShouldPersistTaps="handled"
+              ListFooterComponent={
+                <>
+                  <Text style={styles.totalCantidadText}>
+                    Total de productos: {totalCantidad}
+                  </Text>
+                  <Text style={styles.totalPrecioText}>
+                    Total: ${totalPrecio.toFixed(2)}
+                  </Text>
 
-              <TouchableOpacity
-                style={styles.locationButton}
-                onPress={openMapModal}
-              >
-                <View
-                  style={{ flexDirection: 'row', justifyContent: 'center' }}
-                >
-                  <Entypo
-                    name="location"
-                    size={22}
-                    color={deliveryLocation ? COLOR.orange : COLOR.lightGray}
-                    style={{ right: 10 }}
-                  />
-                  <Text style={styles.locationButtonText}>
-                    {deliveryLocation ? (
-                      <Text style={styles.selectedLocationText}>
-                        Ubicación seleccionada
+                  <TouchableHighlight
+                    underlayColor="#d0cfcfff"
+                    style={styles.locationButton}
+                    onPress={openMapModal}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Entypo
+                        name="location"
+                        size={22}
+                        color={
+                          deliveryLocation ? COLOR.orange : COLOR.lightGray
+                        }
+                        style={{ right: 10 }}
+                      />
+                      <Text style={styles.locationButtonText}>
+                        {deliveryLocation ? (
+                          <Text style={styles.selectedLocationText}>
+                            Ubicación seleccionada
+                          </Text>
+                        ) : (
+                          'Seleccionar ubicación de entrega'
+                        )}
                       </Text>
-                    ) : (
-                      'Seleccionar ubicación de entrega'
-                    )}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                    </View>
+                  </TouchableHighlight>
 
-              {isLoadingLocation && (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#22C55E" />
-                  <Text style={styles.loadingText}>
-                    Obteniendo ubicación...
-                  </Text>
-                </View>
-              )}
+                  {isLoadingLocation && (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color="#22C55E" />
+                      <Text style={styles.loadingText}>
+                        Obteniendo ubicación...
+                      </Text>
+                    </View>
+                  )}
 
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={() => {
-                  if (!deliveryLocation) {
-                    setShowLocationWarning(true);
-                  } else {
-                    setShowConfirmModal(true);
-                  }
-                }}
-              >
-                <View style={{ flexDirection: 'row' }}>
-                  <Ionicons
-                    name="logo-whatsapp"
-                    size={24}
-                    color={COLOR.white}
-                    style={{ right: 10 }}
+                  <Text style={styles.sectionTitle}>📝 Notas del cliente</Text>
+                  <TextInput
+                    style={styles.notesInput}
+                    placeholder="Eje. sin cebolla, salsa extra..."
+                    multiline
+                    numberOfLines={3}
+                    value={customerNotes}
+                    onChangeText={setCustomerNotes}
                   />
-                  <Text style={styles.confirmButtonText}>Confirmar pedido</Text>
-                </View>
-              </TouchableOpacity>
-            </>
-          }
+                  <Text style={styles.sectionTitle}>🚚 Método de entrega</Text>
+                  <View style={styles.deliveryMethodContainer}>
+                    {['A domicilio', 'Para recoger'].map((method) => {
+                      const iconName = method === 'A domicilio' ? 'home-outline' : 'walk-outline';
+
+                      return (
+                        <TouchableOpacity
+                          key={method}
+                          onPress={() => setDeliveryMethod(method)}
+                          style={[
+                            styles.deliveryOption, deliveryMethod === method && styles.selectedOption,
+                          ]}
+                        >
+                          <Ionicons
+                            name={iconName}
+                            size={18}
+                            color={deliveryMethod === method ? '#fff' : '#333'}
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text
+                            style={{
+                              color: deliveryMethod === method ? '#fff' : '#333',
+                              fontWeight: 'bold',
+                            }}
+                          >
+                            {method}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => {
+                      if (!deliveryLocation) {
+                        setShowLocationWarning(true);
+                      } else {
+                        setShowConfirmModal(true);
+                      }
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row' }}>
+                      <Ionicons
+                        name="logo-whatsapp"
+                        size={24}
+                        color={COLOR.white}
+                        style={{ right: 10 }}
+                      />
+                      <Text style={styles.confirmButtonText}>
+                        Confirmar pedido
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              }
+            />
+          </TouchableWithoutFeedback>
+        )}
+
+        <MapModal
+          visible={showMapModal}
+          onClose={() => setShowMapModal(false)}
+          location={location}
+          markerCoords={markerCoords}
+          setMarkerCoords={setMarkerCoords}
+          onConfirm={() => {
+            if (markerCoords) {
+              setDeliveryLocation(markerCoords);
+              setShowMapModal(false);
+            }
+          }}
         />
-      )}
 
-      <MapModal
-        visible={showMapModal}
-        onClose={() => setShowMapModal(false)}
-        location={location}
-        markerCoords={markerCoords}
-        setMarkerCoords={setMarkerCoords}
-        onConfirm={() => {
-          if (markerCoords) {
-            setDeliveryLocation(markerCoords);
-            setShowMapModal(false);
-          }
-        }}
-      />
-
-      {showConfirmModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Confirmar pedido</Text>
-            <Text style={styles.modalText}>¿Deseas confirmar tu pedido?</Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
-                <Text style={styles.modalCancel}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={confirmOrder}>
-                <Text style={styles.modalConfirm}>Confirmar</Text>
-              </TouchableOpacity>
+        {showConfirmModal && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Confirmar pedido</Text>
+              <Text style={styles.modalText}>¿Deseas confirmar tu pedido?</Text>
+              {deliveryMethod && (
+                <Text style={[styles.modalText]}>
+                  Método de entrega:{' '}
+                  <Text style={{ fontWeight: 'bold', color: '#0099ff' }}>
+                    {deliveryMethod}
+                  </Text>
+                </Text>
+              )}
+              <View style={styles.modalActions}>
+                <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
+                  <Text style={styles.modalCancel}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmOrder}>
+                  <Text style={styles.modalConfirm}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {showRemoveModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Eliminar producto</Text>
-            <Text style={styles.modalText}>
-              ¿Seguro que deseas eliminar este producto del carrito?
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity onPress={() => setShowRemoveModal(false)}>
-                <Text style={styles.modalCancel}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={confirmRemove}>
-                <Text style={styles.modalDelete}>Eliminar</Text>
-              </TouchableOpacity>
+        {showRemoveModal && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Eliminar producto</Text>
+              <Text style={styles.modalText}>
+                ¿Seguro que deseas eliminar este producto del carrito?
+              </Text>
+              <View style={styles.modalActions}>
+                <TouchableOpacity onPress={() => setShowRemoveModal(false)}>
+                  <Text style={styles.modalCancel}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmRemove}>
+                  <Text style={styles.modalDelete}>Eliminar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {showLocationWarning && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Ubicación requerida</Text>
-            <Text style={styles.modalText}>
-              Por favor selecciona la ubicación de entrega antes de confirmar tu
-              pedido.
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity onPress={() => setShowLocationWarning(false)}>
-                <Text style={styles.modalCancel}>Entendido</Text>
-              </TouchableOpacity>
+        {showLocationWarning && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Ubicación requerida</Text>
+              <Text style={styles.modalText}>
+                Por favor selecciona la ubicación de entrega antes de confirmar tu pedido.
+              </Text>
+              <View style={styles.modalActions}>
+                <TouchableOpacity onPress={() => setShowLocationWarning(false)}>
+                  <Text style={styles.modalCancel}>Entendido</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      )}
-    </View>
+        )}
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -332,7 +409,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     marginBottom: 10,
-    elevation: 1,
+    elevation: 2,
   },
 
   itemName: {
@@ -378,6 +455,8 @@ const styles = StyleSheet.create({
   confirmButton: {
     backgroundColor: '#22C55E',
     padding: 14,
+    marginTop: 10,
+    marginBottom: 30,
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -479,6 +558,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontFamily: 'Poppins-Regular',
+  },
+  sectionTitle: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  notesInput: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  deliveryMethodContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  deliveryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: '#f9f9f9',
+  },
+  selectedOption: {
+    backgroundColor: '#0099ff',
+    borderColor: '#007acc',
+  },
+  scrollContainer: {
+    flexGrow: 1,
   },
 });
 

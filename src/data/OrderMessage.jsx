@@ -3,6 +3,8 @@ export const generateOrderMessage = (
   customerName,
   cartState,
   location,
+  customerNotes,
+  deliveryMethod,
 ) => {
   let message = `📦 *Nuevo Pedido vía Tráelo* 🛵\n\n`;
 
@@ -14,8 +16,16 @@ export const generateOrderMessage = (
     message += `👤 *Cliente:* ${customerName}\n`;
   }
 
-  if (location) {
-    message += `📍 *Ubicación del cliente::* ${location}\n`;
+  if (deliveryMethod) {
+    message += `🚚 *Entrega:* ${deliveryMethod}\n`;
+  }
+
+  if (location && deliveryMethod === 'A domicilio') {
+    message += `📍 *Ubicación:* ${location}\n`;
+  }
+
+  if (customerNotes?.trim()) {
+    message += `📝 *Notas:* ${customerNotes.trim()}\n`;
   }
 
   message += `\n🧾 *Pedido:*\n`;
