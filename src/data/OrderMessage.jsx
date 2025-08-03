@@ -5,6 +5,7 @@ export const generateOrderMessage = (
   location,
   customerNotes,
   deliveryMethod,
+  paymentAmount,
 ) => {
   let message = `📦 *Nuevo Pedido vía Tráelo* 🛵\n\n`;
 
@@ -25,7 +26,7 @@ export const generateOrderMessage = (
   }
 
   if (customerNotes?.trim()) {
-    message += `📝 *Notas:* ${customerNotes.trim()}\n`;
+    message += `\n📝 *Notas:* ${customerNotes.trim()}\n`;
   }
 
   message += `\n🧾 *Pedido:*\n`;
@@ -36,7 +37,22 @@ export const generateOrderMessage = (
   });
 
   const total = cartState.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  message += `\n💰 *Total: $${total}*\n\n📲 Enviado desde la app Tráelo`;
+
+  message += `\n💰 *Total: $${total}*\n`;
+
+  if (paymentAmount) {
+    const pago = parseFloat(paymentAmount);
+    message += `💵 *Pagaré con:* $${pago}\n`;
+
+    if (pago >= total) {
+      const cambio = (pago - total).toFixed(2);
+      message += `💸 *Cambio:* $${cambio}\n`;
+    } else {
+      message += `⚠️ *El monto ingresado es menor al total*\n`;
+    }
+  }
+
+  message += `\n📲 Enviado desde la app Tráelo`;
 
   return encodeURIComponent(message); // para enviar por URL
 };

@@ -127,7 +127,6 @@ const RegisterScreen = ({ navigation }) => {
               />
               <Picker.Item label="Cliente" value="ROLE_CUSTOMER" />
               <Picker.Item label="Negocio" value="ROLE_BUSINESS" />
-              <Picker.Item label="Repartidor" value="ROLE_RIDER" />
             </Picker>
           </View>
           {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}

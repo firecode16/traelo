@@ -116,7 +116,6 @@ const BusinessMenuScreen = () => {
       allowsEditing: true,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       base64: false,
-      aspect: [4, 4],
       quality: 1,
     });
 
@@ -142,7 +141,6 @@ const BusinessMenuScreen = () => {
         allowsEditing: true,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         base64: false,
-        aspect: [4, 4],
         quality: 1,
       });
 

@@ -9,12 +9,15 @@ import {
   RefreshControl,
   TouchableHighlight,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLOR } from '../../constants/Color';
 import { API } from '../../constants/ApiConfig';
 import { getAllBusinesses } from '../../services/BusinessService';
+import SearchBar from '../../components/SearchBar';
 
 const HomeScreen = ({ navigation }) => {
   const [businesses, setBusinesses] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,6 +72,32 @@ const HomeScreen = ({ navigation }) => {
     setRefreshing(true);
     loadBusinesses(0, true);
   };
+
+  const filteredBusinesses = businesses.filter((business) => {
+    const term = searchTerm.toLowerCase();
+    const menuItems = business.menus || [];
+
+    const matchesMenu = menuItems.some(
+      (item) =>
+        item.name?.toLowerCase().includes(term) ||
+        item.description?.toLowerCase().includes(term) ||
+        item.category?.toLowerCase().includes(term),
+    );
+
+    return (
+      business.fullName?.toLowerCase().includes(term) ||
+      business.description?.toLowerCase().includes(term) ||
+      business.category?.toLowerCase().includes(term) ||
+      matchesMenu
+    );
+  });
+
+  const EmptyList = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="search-outline" size={48} color="#ccc" />
+      <Text style={styles.emptyText}>No se encontraron resultados</Text>
+    </View>
+  );
 
   const renderBusinessCard = ({ item: business }) => (
     <TouchableHighlight
@@ -127,20 +156,32 @@ const HomeScreen = ({ navigation }) => {
   }
 
   return (
-    <FlatList
-      contentContainerStyle={styles.container}
-      data={businesses}
-      renderItem={renderBusinessCard}
-      keyExtractor={(item) => item.businessId.toString()}
-      onEndReached={handleLoadMore}
-      onEndReachedThreshold={0.5}
-      ListFooterComponent={
-        loading ? <ActivityIndicator size="small" color="#00b894" /> : null
-      }
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    />
+    <View style={styles.container}>
+      <SearchBar
+        value={searchTerm}
+        onChangeText={(text) => {
+          setSearchTerm(text);
+          if (text.trim() === '') {
+            loadBusinesses(0, true);
+          }
+        }}
+      />
+      <FlatList
+        data={filteredBusinesses}
+        renderItem={renderBusinessCard}
+        keyExtractor={(item) => item.businessId.toString()}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{ paddingBottom: 45, flexGrow: 1 }}
+        ListFooterComponent={
+          loading ? <ActivityIndicator size="small" color="#00b894" /> : null
+        }
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={!loading && <EmptyList />}
+      />
+    </View>
   );
 };
 
@@ -228,6 +269,18 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#888',
     fontSize: 14,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  emptyText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '500',
   },
 });
 

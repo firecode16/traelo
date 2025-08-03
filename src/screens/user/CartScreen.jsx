@@ -85,11 +85,14 @@ const CartScreen = ({ route, navigation }) => {
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [deliveryLocation, setDeliveryLocation] = useState(null);
   const [showLocationWarning, setShowLocationWarning] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
 
   const openMapModal = async () => {
     setIsLoadingLocation(true);
     try {
-      if (!location) {
+      let baseCoords = deliveryLocation;
+
+      if (!baseCoords) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           alert('Permiso de ubicaci\u00f3n denegado');
@@ -100,13 +103,13 @@ const CartScreen = ({ route, navigation }) => {
           accuracy: Location.Accuracy.Lowest,
           maximumAge: 30000,
         });
-        const coords = {
+        baseCoords = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
         };
-        setLocation(coords);
-        setMarkerCoords(coords);
       }
+      setLocation(baseCoords);
+      setMarkerCoords(baseCoords);
       setShowMapModal(true);
     } catch (error) {
       console.warn('Error al obtener ubicaci\u00f3n:', error);
@@ -130,8 +133,6 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const confirmOrder = async () => {
-    setShowConfirmModal(false);
-
     try {
       const orderPayload = {
         orderId: Date.now().toString(),
@@ -147,6 +148,7 @@ const CartScreen = ({ route, navigation }) => {
 
       await createOrder(orderPayload);
       console.info('Pedido enviado exitosamente:', orderPayload.orderId);
+      setShowConfirmModal(false);
       sendOrderToWhatsApp();
       navigation.popToTop();
     } catch (error) {
@@ -167,6 +169,7 @@ const CartScreen = ({ route, navigation }) => {
       locationUrl,
       customerNotes,
       deliveryMethod,
+      paymentAmount
     );
 
     const url = `https://wa.me/${businessPhone}?text=${message}`;
@@ -175,6 +178,13 @@ const CartScreen = ({ route, navigation }) => {
       console.error('Error al abrir WhatsApp', err),
     );
   };
+
+  const handlePaymentAmountChange = (text) => {
+    const regex = /^\d{0,4}$/;
+    if (regex.test(text)) {
+      setPaymentAmount(text);
+    }
+  }
 
   const renderItem = ({ item }) => (
     <View style={styles.itemRow}>
@@ -232,13 +242,19 @@ const CartScreen = ({ route, navigation }) => {
 
                   <TouchableHighlight
                     underlayColor="#d0cfcfff"
-                    style={styles.locationButton}
+                    style={[
+                      styles.locationButton,
+                      {
+                        borderColor: deliveryLocation ? COLOR.orange : COLOR.gray,
+                      },
+                    ]}
                     onPress={openMapModal}
                   >
                     <View
                       style={{
                         flexDirection: 'row',
                         justifyContent: 'center',
+                        alignItems: 'center',
                       }}
                     >
                       <Entypo
@@ -252,10 +268,10 @@ const CartScreen = ({ route, navigation }) => {
                       <Text style={styles.locationButtonText}>
                         {deliveryLocation ? (
                           <Text style={styles.selectedLocationText}>
-                            Ubicación seleccionada
+                            Cambiar la ubicación
                           </Text>
                         ) : (
-                          'Seleccionar ubicación de entrega'
+                          'Compartir ubicación de entrega'
                         )}
                       </Text>
                     </View>
@@ -270,45 +286,73 @@ const CartScreen = ({ route, navigation }) => {
                     </View>
                   )}
 
-                  <Text style={styles.sectionTitle}>📝 Notas del cliente</Text>
-                  <TextInput
-                    style={styles.notesInput}
-                    placeholder="Eje. sin cebolla, salsa extra..."
-                    multiline
-                    numberOfLines={3}
-                    value={customerNotes}
-                    onChangeText={setCustomerNotes}
-                  />
-                  <Text style={styles.sectionTitle}>🚚 Método de entrega</Text>
-                  <View style={styles.deliveryMethodContainer}>
-                    {['A domicilio', 'Para recoger'].map((method) => {
-                      const iconName = method === 'A domicilio' ? 'home-outline' : 'walk-outline';
+                  <View style={styles.card}>
+                    <Text style={styles.sectionTitle}>
+                      📝 Notas del cliente
+                    </Text>
+                    <TextInput
+                      style={styles.notesInput}
+                      placeholder="Eje. sin cebolla, salsa extra..."
+                      multiline
+                      numberOfLines={3}
+                      value={customerNotes}
+                      onChangeText={setCustomerNotes}
+                    />
 
-                      return (
-                        <TouchableOpacity
-                          key={method}
-                          onPress={() => setDeliveryMethod(method)}
-                          style={[
-                            styles.deliveryOption, deliveryMethod === method && styles.selectedOption,
-                          ]}
-                        >
-                          <Ionicons
-                            name={iconName}
-                            size={18}
-                            color={deliveryMethod === method ? '#fff' : '#333'}
-                            style={{ marginRight: 6 }}
-                          />
-                          <Text
-                            style={{
-                              color: deliveryMethod === method ? '#fff' : '#333',
-                              fontWeight: 'bold',
-                            }}
+                    <Text style={styles.sectionMethodTitle}>
+                      Método de pago
+                    </Text>
+                    <View style={styles.paymentMethodContainer}>
+                      <Text style={styles.paymentLabel}>💵 Efectivo</Text>
+                      <Text style={styles.paymentSubLabel}>Pagaré con:</Text>
+                      <View style={styles.inputWithIcon}>
+                        <Text style={styles.dollarIcon}>$</Text>
+                        <TextInput
+                          style={styles.paymentInput}
+                          placeholder="0"
+                          keyboardType="numeric"
+                          value={paymentAmount}
+                          onChangeText={handlePaymentAmountChange}
+                        />
+                      </View>
+                    </View>
+
+                    <Text style={styles.sectionMethodTitle}>
+                      🚚 Método de entrega
+                    </Text>
+                    <View style={styles.deliveryMethodContainer}>
+                      {['A domicilio', 'Para recoger'].map((method) => {
+                        const iconName = method === 'A domicilio' ? 'home-outline' : 'walk-outline';
+
+                        return (
+                          <TouchableOpacity
+                            key={method}
+                            onPress={() => setDeliveryMethod(method)}
+                            style={[
+                              styles.deliveryOption,
+                              deliveryMethod === method && styles.selectedOption,
+                            ]}
                           >
-                            {method}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                            <Ionicons
+                              name={iconName}
+                              size={18}
+                              color={
+                                deliveryMethod === method ? '#fff' : '#333'
+                              }
+                              style={{ marginRight: 6 }}
+                            />
+                            <Text
+                              style={{
+                                color: deliveryMethod === method ? '#fff' : '#333',
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              {method}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
 
                   <TouchableOpacity
@@ -549,10 +593,13 @@ const styles = StyleSheet.create({
   },
 
   locationButton: {
-    backgroundColor: '#f0f0f0',
-    padding: 12,
+    borderWidth: 1,
+    backgroundColor: '#f9f9f9',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    alignItems: 'center',
     borderRadius: 10,
-    marginBottom: 10,
+    marginBottom: 20,
   },
   locationButtonText: {
     fontFamily: 'Poppins-SemiBold',
@@ -587,6 +634,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 6,
   },
+  sectionMethodTitle: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   notesInput: {
     backgroundColor: '#fff',
     borderRadius: 10,
@@ -617,6 +670,59 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  paymentMethodContainer: {
+    marginBottom: 15,
+    marginTop: 5,
+  },
+  paymentLabel: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 15,
+    color: '#333',
+    marginBottom: 5,
+  },
+  paymentSubLabel: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    height: 40
+  },
+  dollarIcon: {
+    fontSize: 16,
+    color: '#555',
+    marginRight: 6,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  paymentInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#000',
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    height: '100%',
   },
 });
 

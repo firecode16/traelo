@@ -2,14 +2,14 @@ import { TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LogoTraeloHeaderTitle from '../util/TraeloHeaderTitle';
 
 import HomeScreen from '../screens/user/HomeScreen';
 import ProfileScreen from '../screens/user/ProfileScreen';
-import SearchBar from '../components/SearchBar';
 
 const Tab = createBottomTabNavigator();
 
-const CustomersTabsNavigation = ({ navigation }) => {
+const CustomersTabsNavigation = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -37,14 +37,8 @@ const CustomersTabsNavigation = ({ navigation }) => {
         component={HomeScreen}
         options={{
           headerShown: true,
-          title: 'Inicio',
-          headerTitle: () => <SearchBar />,
-          headerTitleAlign: 'center',
-          headerTitleStyle: {
-            fontFamily: 'Poppins-SemiBold',
-            fontSize: 20,
-            color: '#f97316',
-          },
+          headerTitle: () => <LogoTraeloHeaderTitle />,
+          headerTitleAlign: 'left',
         }}
       />
       <Tab.Screen

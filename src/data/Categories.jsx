@@ -2,7 +2,7 @@ export const categories = [
   { label: 'Pizzas', value: 'P01' },
   { label: 'Tacos', value: 'T02' },
   { label: 'Hamburguesas', value: 'H03' },
-  { label: 'Pastas', value: 'P04' },
+  { label: 'Ensaladas', value: 'E04' },
   { label: 'Pollo', value: 'P05' },
   { label: 'Postres', value: 'P06' },
   { label: 'Bebidas', value: 'B07' },
@@ -12,4 +12,6 @@ export const categories = [
   { label: 'Boneless', value: 'B11' },
   { label: 'Bisquets', value: 'B12' },
   { label: 'Panaderia', value: 'P13' },
+  { label: 'Mariscos', value: 'M14' },
+  { label: 'Antojitos', value: 'A15' },
 ];

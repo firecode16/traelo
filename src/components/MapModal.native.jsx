@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 
 const MapModal = ({
   visible,
@@ -10,7 +11,7 @@ const MapModal = ({
   setMarkerCoords,
   onConfirm,
 }) => {
-  if (!location) return null;
+  if (!visible || !location) return null;
 
   return (
     <Modal
@@ -23,24 +24,27 @@ const MapModal = ({
         <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>Selecciona tu ubicación</Text>
 
-          <MapView
-            style={styles.map}
-            initialRegion={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
-            }}
-            onPress={(e) => setMarkerCoords(e.nativeEvent.coordinate)}
-          >
-            {markerCoords && (
-              <Marker
-                coordinate={markerCoords}
-                draggable
-                onDragEnd={(e) => setMarkerCoords(e.nativeEvent.coordinate)}
-              />
-            )}
-          </MapView>
+          <View style={{ flex: 1 }}>
+            <MapView
+              style={styles.map}
+              initialRegion={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+                latitudeDelta: 0.002,
+                longitudeDelta: 0.002,
+              }}
+              onRegionChangeComplete={(reg) => {
+                setMarkerCoords({
+                  latitude: reg.latitude,
+                  longitude: reg.longitude,
+                });
+              }}
+            />
+
+            <View style={styles.markerFixed}>
+              <Ionicons name="location-sharp" size={40} color="#f97316" />
+            </View>
+          </View>
 
           <View style={styles.modalActions}>
             <TouchableOpacity onPress={onClose}>
@@ -77,6 +81,18 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     textAlign: 'center',
   },
+  map: {
+    flex: 1,
+    borderRadius: 10,
+  },
+  markerFixed: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -20,
+    marginTop: -40,
+    zIndex: 10,
+  },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -91,15 +107,6 @@ const styles = StyleSheet.create({
     color: '#22C55E',
     fontWeight: 'bold',
     fontSize: 16,
-  },
-  webMessage: {
-    textAlign: 'center',
-    color: '#333',
-    fontSize: 14,
-  },
-  map: {
-    flex: 1,
-    borderRadius: 10,
   },
 });
 
