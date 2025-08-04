@@ -44,9 +44,8 @@ const LoginScreen = ({ navigation }) => {
 
     try {
       const token = await loginUser({ username: email.trim(), password });
-      await AsyncStorage.setItem('authToken', token);
-
       const userData = await getUserInfo(token);
+      
       const role = userData.roles?.[0]?.replace('ROLE_', '') || 'CUSTOMER';
 
       navigation.reset({

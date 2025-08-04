@@ -7,14 +7,23 @@ import { COLOR } from '../../constants/Color';
 const SessionLoaderScreen = ({ navigation }) => {
   useEffect(() => {
     const checkSession = async () => {
-      const token = await AsyncStorage.getItem('authToken');
-
-      if (!token) {
-        navigation.replace('Login');
-        return;
-      }
-
       try {
+        const storedData = await AsyncStorage.getItem('userInfo');
+
+        if (!storedData) {
+          navigation.replace('Login');
+          return;
+        }
+
+        const userInfo = JSON.parse(storedData);
+        const token = userInfo?.token;
+
+        if (!token) {
+          await AsyncStorage.removeItem('userInfo');
+          navigation.replace('Login');
+          return;
+        }
+
         const user = await getUserInfo(token);
         const role = user.roles?.[0]?.replace('ROLE_', '') || 'CUSTOMER';
 
@@ -23,7 +32,8 @@ const SessionLoaderScreen = ({ navigation }) => {
           routes: [{ name: 'RoleRouter', params: { role } }],
         });
       } catch (err) {
-        await AsyncStorage.removeItem('authToken'); // invalid token
+        console.error('Error en checkSession:', err.message);
+        await AsyncStorage.removeItem('userInfo'); // remove if corrupted
         navigation.replace('Login');
       }
     };
