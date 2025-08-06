@@ -4,13 +4,16 @@
     "slug": "traelo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon_traelo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash_traelo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "backgroundColor": "#000000"
+      }
     },
     "ios": {
       "supportsTablet": true,
@@ -22,7 +25,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/adaptive_icon_traelo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -35,7 +38,12 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ],
-      "package": "com.hfredi35.traelo",
+      "package": "com.traelo.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyC9j2y_FhfBmmBOqMNF5oJ6EHrD5myc0wE"
+        }
+      },
       "usesCleartextTraffic": true
     },
     "web": {

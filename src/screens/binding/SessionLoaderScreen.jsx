@@ -32,7 +32,7 @@ const SessionLoaderScreen = ({ navigation }) => {
           routes: [{ name: 'RoleRouter', params: { role } }],
         });
       } catch (err) {
-        console.error('Error en checkSession:', err.message);
+        console.log('Error en checkSession:', err.message);
         await AsyncStorage.removeItem('userInfo'); // remove if corrupted
         navigation.replace('Login');
       }

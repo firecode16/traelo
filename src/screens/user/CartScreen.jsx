@@ -293,6 +293,7 @@ const CartScreen = ({ route, navigation }) => {
                     <TextInput
                       style={styles.notesInput}
                       placeholder="Eje. sin cebolla, salsa extra..."
+                      placeholderTextColor='#9e9e9eff'
                       multiline
                       numberOfLines={3}
                       value={customerNotes}
@@ -310,6 +311,7 @@ const CartScreen = ({ route, navigation }) => {
                         <TextInput
                           style={styles.paymentInput}
                           placeholder="0"
+                          placeholderTextColor='#9e9e9eff'
                           keyboardType="numeric"
                           value={paymentAmount}
                           onChangeText={handlePaymentAmountChange}

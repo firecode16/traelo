@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import MapView from 'react-native-maps';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
+import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 
 const MapModal = ({
@@ -11,7 +11,14 @@ const MapModal = ({
   setMarkerCoords,
   onConfirm,
 }) => {
-  if (!visible || !location) return null;
+  const isValidCoords = (coord) =>
+    coord &&
+    typeof coord.latitude === 'number' &&
+    typeof coord.longitude === 'number' &&
+    !isNaN(coord.latitude) &&
+    !isNaN(coord.longitude);
+
+  if (!visible || !isValidCoords(location)) return null;
 
   return (
     <Modal
@@ -26,6 +33,7 @@ const MapModal = ({
 
           <View style={{ flex: 1 }}>
             <MapView
+              provider={PROVIDER_GOOGLE}
               style={styles.map}
               initialRegion={{
                 latitude: location.latitude,
@@ -34,10 +42,12 @@ const MapModal = ({
                 longitudeDelta: 0.002,
               }}
               onRegionChangeComplete={(reg) => {
-                setMarkerCoords({
-                  latitude: reg.latitude,
-                  longitude: reg.longitude,
-                });
+                if (reg && reg.latitude && reg.longitude) {
+                  setMarkerCoords({
+                    latitude: reg.latitude,
+                    longitude: reg.longitude,
+                  });
+                }
               }}
             />
 

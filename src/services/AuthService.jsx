@@ -51,8 +51,7 @@ export const loginUser = async ({ username, password }) => {
     await AsyncStorage.setItem('userInfo', JSON.stringify(userData));
     return result.token || result.jwt;
   } catch (error) {
-    console.error('Error de red o fetch:', error.message);
-    Alert.alert('Error de red', error.message);
+    console.log('Error de red o fetch:', error.message);
   }
 };
 

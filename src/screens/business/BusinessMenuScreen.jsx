@@ -405,6 +405,7 @@ const BusinessMenuScreen = () => {
 
               <TextInput
                 placeholder="Nombre del producto"
+                placeholderTextColor='#9e9e9eff'
                 value={form.name}
                 onChangeText={(text) => setForm({ ...form, name: text })}
                 style={[
@@ -414,6 +415,7 @@ const BusinessMenuScreen = () => {
               />
               <TextInput
                 placeholder="Descripción"
+                placeholderTextColor='#9e9e9eff'
                 value={form.description}
                 onChangeText={(text) => setForm({ ...form, description: text })}
                 style={[
@@ -423,6 +425,7 @@ const BusinessMenuScreen = () => {
               />
               <TextInput
                 placeholder="Precio"
+                placeholderTextColor='#9e9e9eff'
                 keyboardType="numeric"
                 value={form.price}
                 onChangeText={(text) => setForm({ ...form, price: text })}
@@ -449,6 +452,7 @@ const BusinessMenuScreen = () => {
                   <Picker.Item
                     label="Selecciona una categoría..."
                     value=""
+                    style={{ color: '#b8b8b8ff' }}
                     enabled={false}
                   />
                   {categories.map((item) => (
@@ -459,6 +463,7 @@ const BusinessMenuScreen = () => {
                     />
                   ))}
                 </Picker>
+                <Ionicons name="chevron-down" size={20} color="#555" style={styles.pickerIcon} />
               </View>
 
               {/* Picker de imagen */}
@@ -620,14 +625,28 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   pickerContainer: {
+    position: 'relative',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    marginBottom: 13,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    elevation: 1,
   },
   picker: {
-    height: 55,
-    padding: 4,
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    height: 56,
+    width: '100%',
+    color: '#000',
+    paddingLeft: 10,
+  },
+  pickerIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 15,
+    pointerEvents: 'none',
   },
   logoWrapper: {
     alignItems: 'center',

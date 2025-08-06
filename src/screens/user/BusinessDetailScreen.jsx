@@ -74,9 +74,18 @@ const BusinessDetailScreen = ({ route, navigation }) => {
           <TouchableHighlight
             style={styles.quantityButton}
             underlayColor="#ecececff"
-            onPress={() => handleRemoveFromCart(item.menuId)}
+            onPress={() => {
+              if (business.scheduler?.isActive) {
+                handleRemoveFromCart(item.menuId)
+              }
+            }}
+            disabled={!business.scheduler?.isActive}
           >
-            <Ionicons name="remove-circle-outline" size={32} color="#f44336" />
+            <Ionicons
+              name="remove-circle-outline"
+              size={32}
+              color={business.scheduler?.isActive ? '#f44336' : '#9e9e9e'}
+            />
           </TouchableHighlight>
 
           <View style={styles.quantityCircle}>
@@ -86,9 +95,18 @@ const BusinessDetailScreen = ({ route, navigation }) => {
           <TouchableHighlight
             style={styles.quantityButton}
             underlayColor="#ecececff"
-            onPress={() => handleAddToCart(item.menuId)}
+            onPress={() => {
+              if (business.scheduler?.isActive) {
+                handleAddToCart(item.menuId)
+              }
+            }}
+            disabled={!business.scheduler?.isActive}
           >
-            <Ionicons name="add-circle-outline" size={32} color="#4CAF50" />
+            <Ionicons
+              name="add-circle-outline"
+              size={32}
+              color={business.scheduler?.isActive ? '#4CAF50' : '#9e9e9e'}
+            />
           </TouchableHighlight>
         </View>
       </View>

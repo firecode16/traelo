@@ -13,6 +13,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { COLOR } from '../../constants/Color';
 
@@ -122,22 +123,22 @@ const RegisterScreen = ({ navigation }) => {
               <Picker.Item
                 label="Selecciona tu rol..."
                 value=""
-                style={{ color: '#a6a6a6' }}
+                style={{ color: '#9e9e9eff' }}
                 enabled={false}
               />
               <Picker.Item label="Cliente" value="ROLE_CUSTOMER" />
               <Picker.Item label="Negocio" value="ROLE_BUSINESS" />
             </Picker>
+            <Ionicons name="chevron-down" size={20} color="#555" style={styles.pickerIcon} />
           </View>
           {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
 
           <TextInput
             style={styles.input}
             placeholder={
-              form.role === 'ROLE_BUSINESS'
-                ? 'Nombre del negocio'
-                : 'Nombre completo'
+              form.role === 'ROLE_BUSINESS' ? 'Nombre del negocio' : 'Nombre completo'
             }
+            placeholderTextColor='#9e9e9eff'
             value={form.fullName}
             onChangeText={(text) => handleChange('fullName', text)}
           />
@@ -148,6 +149,7 @@ const RegisterScreen = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Usuario"
+            placeholderTextColor='#9e9e9eff'
             value={form.username}
             onChangeText={(text) => handleChange('username', text)}
           />
@@ -158,6 +160,7 @@ const RegisterScreen = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Correo electrónico"
+            placeholderTextColor='#9e9e9eff'
             value={form.email}
             keyboardType="email-address"
             onChangeText={(text) => handleChange('email', text)}
@@ -167,6 +170,7 @@ const RegisterScreen = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Teléfono"
+            placeholderTextColor='#9e9e9eff'
             value={form.phone}
             keyboardType="phone-pad"
             onChangeText={(text) => handleChange('phone', text)}
@@ -174,8 +178,9 @@ const RegisterScreen = ({ navigation }) => {
           {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: '#000' }]}
             placeholder="Contraseña"
+            placeholderTextColor='#9e9e9eff'
             secureTextEntry
             value={form.password}
             onChangeText={(text) => handleChange('password', text)}
@@ -189,6 +194,7 @@ const RegisterScreen = ({ navigation }) => {
               <Text style={styles.label}>Dirección del negocio</Text>
               <TextInput
                 placeholder="Ej. Calle 123, Col. Centro"
+                placeholderTextColor='#9e9e9eff'
                 value={form.address}
                 onChangeText={(text) => handleChange('address', text)}
                 style={styles.input}
@@ -253,14 +259,28 @@ const styles = StyleSheet.create({
     color: COLOR.black,
   },
   pickerContainer: {
-    backgroundColor: COLOR.white,
-    borderRadius: 10,
-    marginBottom: 20,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: '#fff',
     elevation: 1,
   },
   picker: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
+    height: 56,
+    width: '100%',
+    color: '#000',
+    paddingLeft: 10,
+  },
+  pickerIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 15,
+    pointerEvents: 'none',
   },
   registerButton: {
     backgroundColor: COLOR.orange,
