@@ -1,12 +1,9 @@
 import React from 'react';
 import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppNavigation from './src/navigation/AppNavigation';
-
-SplashScreen.preventAutoHideAsync();
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -17,11 +14,7 @@ export default function App() {
     'Poppins-SemiBold': require('./src/assets/fonts/poppins/Poppins-SemiBold.ttf'),
   });
 
-  React.useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
+  React.useEffect(() => {}, [fontsLoaded]);
 
   if (!fontsLoaded) {
     return null;

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "traelo",
+    "name": "Traelo",
     "slug": "traelo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash_traelo.png",
       "resizeMode": "cover",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFA726"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,7 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive_icon_traelo.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFA726"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
