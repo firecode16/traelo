@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash_traelo.png",
       "resizeMode": "cover",
-      "backgroundColor": "#FF731C"
+      "backgroundColor": "#F37A01"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,7 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive_icon_traelo.png",
-        "backgroundColor": "#FF731C"
+        "backgroundColor": "#F37A01"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
