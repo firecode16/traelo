@@ -67,7 +67,7 @@ const BusinessDetailScreen = ({ route, navigation }) => {
         </TouchableHighlight>
         <View style={styles.menuInfo}>
           <Text style={styles.menuName}>{item.name}</Text>
-          <Text style={styles.menuDescription}>{item.description}</Text>
+          <Text style={styles.menuDescription} numberOfLines={2} ellipsizeMode="tail">{item.description}</Text>
           <Text style={styles.menuPrice}>${item.price.toFixed(2)}</Text>
         </View>
         <View style={styles.quantityControls}>
@@ -317,8 +317,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   menuImage: {
-    width: 80,
-    height: 80,
+    width: 84,
+    height: 92,
   },
   menuInfo: {
     flex: 1,
@@ -330,8 +330,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   menuDescription: {
+    flex: 1,
     fontSize: 12,
     color: '#666',
+    lineHeight: 14,
+    maxHeight: 50,
   },
   menuPrice: {
     fontSize: 14,

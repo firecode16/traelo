@@ -35,13 +35,13 @@ const SearchBar = ({ value, onChangeText }) => {
   const backgroundColor = animatedValue.interpolate({
     inputRange: [0, 1],
     outputRange: [
-      colorScheme === 'dark' ? '#333' : '#f1f1f1',
-      colorScheme === 'dark' ? '#444' : '#e0e0e0',
+      colorScheme === 'dark' ? '#d4d4d4ff' : '#c7c7c7ff',
+      colorScheme === 'dark' ? '#c0bcbcff' : '#b6b6b6ff',
     ],
   });
 
-  const textColor = colorScheme === 'dark' ? '#eee' : '#333';
-  const placeholderColor = colorScheme === 'dark' ? '#aaa' : '#888';
+  const textColor = colorScheme === 'dark' ? '#505050ff' : '#636363ff';
+  const placeholderColor = colorScheme === 'dark' ? '#7f7f7fff' : '#999898ff';
 
   return (
     <View style={styles.wrapper}>
