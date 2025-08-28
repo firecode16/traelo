@@ -1,35 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  Image,
   FlatList,
   TouchableHighlight,
   StyleSheet,
-  Dimensions,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLOR } from '../../constants/Color';
-
-const { width, height } = Dimensions.get('window');
+import ImageWithFallback from '../../components/ImageWithFallback';
+import { preloadImage } from '../../components/ImageCache';
+import useScrollHandler from '../../components/HandleScroll';
+import { MenuItemDetail as MenuItem } from '../../components/MenuItemDetail';
 
 const BusinessDetailScreen = ({ route, navigation }) => {
   const { business } = route.params;
   const [cartItems, setCartItems] = useState({});
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [visibleItems, setVisibleItems] = useState(new Set());
+  const { handleScroll, isScrolling, cleanup } = useScrollHandler();
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    return cleanup; // Cleanup on unmount
+  }, []);
 
-  const handleAddToCart = (menuId) => {
+  useEffect(() => {
+    if (!isScrolling && visibleItems.size > 0) {
+      const preloadImages = async () => {
+        for (const menuId of visibleItems) {
+          const item = business.menus.find((menu) => menu.menuId === menuId);
+          if (item && item.imageUrl) {
+            await preloadImage(item.imageUrl);
+          }
+        }
+      };
+      preloadImages();
+    }
+  }, [visibleItems, isScrolling, business.menus]);
+
+  // Handle scroll to track visible items
+  const handleViewableItemsChanged = useCallback(({ viewableItems }) => {
+    const newVisibleItems = new Set();
+    viewableItems.forEach(({ item }) => {
+      newVisibleItems.add(item.menuId);
+    });
+    setVisibleItems(newVisibleItems);
+  }, []);
+
+  const handleAddToCart = useCallback((menuId) => {
     setCartItems((prev) => ({
       ...prev,
       [menuId]: (prev[menuId] || 0) + 1,
     }));
-  };
+  }, []);
 
-  const handleRemoveFromCart = (menuId) => {
+  const handleRemoveFromCart = useCallback((menuId) => {
     setCartItems((prev) => {
       if (!prev[menuId]) return prev;
       const updated = { ...prev };
@@ -37,90 +64,50 @@ const BusinessDetailScreen = ({ route, navigation }) => {
       if (updated[menuId] <= 0) delete updated[menuId];
       return updated;
     });
-  };
+  }, []);
 
-  const getTotalItems = (items) => {
+  const getTotalItems = useCallback((items) => {
     if (!items) return 0;
     return Object.values(items).reduce(
-      (total, quantity) => total + quantity,
-      0,
+      (total, quantity) => total + quantity, 0,
     );
-  };
+  }, []);
 
-  const renderMenuItem = ({ item }) => {
-    const quantity = cartItems[item.menuId] || 0;
+  const openViewModal = useCallback((item) => {
+    setSelectedMenuItem(item);
+    setModalVisible(true);
+  }, []);
 
-    return (
-      <View style={styles.menuItem}>
-        <TouchableHighlight
-          onPress={() => {
-            setSelectedMenuItem(item);
-            setModalVisible(true);
-          }}
-          underlayColor="#ececec"
-        >
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.menuImage}
-            resizeMode="cover"
-          />
-        </TouchableHighlight>
-        <View style={styles.menuInfo}>
-          <Text style={styles.menuName}>{item.name}</Text>
-          <Text style={styles.menuDescription} numberOfLines={2} ellipsizeMode="tail">{item.description}</Text>
-          <Text style={styles.menuPrice}>${item.price.toFixed(2)}</Text>
-        </View>
-        <View style={styles.quantityControls}>
-          <TouchableHighlight
-            style={styles.quantityButton}
-            underlayColor="#ecececff"
-            onPress={() => {
-              if (business.scheduler?.isActive) {
-                handleRemoveFromCart(item.menuId)
-              }
-            }}
-            disabled={!business.scheduler?.isActive}
-          >
-            <Ionicons
-              name="remove-circle-outline"
-              size={32}
-              color={business.scheduler?.isActive ? '#f44336' : '#9e9e9e'}
-            />
-          </TouchableHighlight>
-
-          <View style={styles.quantityCircle}>
-            <Text style={styles.quantityText}>{quantity}</Text>
-          </View>
-
-          <TouchableHighlight
-            style={styles.quantityButton}
-            underlayColor="#ecececff"
-            onPress={() => {
-              if (business.scheduler?.isActive) {
-                handleAddToCart(item.menuId)
-              }
-            }}
-            disabled={!business.scheduler?.isActive}
-          >
-            <Ionicons
-              name="add-circle-outline"
-              size={32}
-              color={business.scheduler?.isActive ? '#4CAF50' : '#9e9e9e'}
-            />
-          </TouchableHighlight>
-        </View>
-      </View>
-    );
-  };
+  const renderMenuItem = useCallback(
+    ({ item }) => (
+      <MenuItem
+        item={item}
+        onView={openViewModal}
+        onAddToCart={handleAddToCart}
+        onRemoveFromCart={handleRemoveFromCart}
+        cartItems={cartItems}
+        isBusinessActive={business.scheduler?.isActive}
+      />
+    ),
+    [
+      cartItems,
+      business.scheduler?.isActive,
+      openViewModal,
+      handleAddToCart,
+      handleRemoveFromCart,
+    ],
+  );
 
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <Image
-          source={{ uri: business.logoUrl }}
-          style={styles.coverImage}
-          resizeMode="cover"
-        />
+        <View style={styles.imageContainer}>
+          <ImageWithFallback
+            src={business.logoUrl}
+            style={styles.coverImage}
+            resizeMode="cover"
+          />
+        </View>
         <View style={styles.infoContainer}>
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -136,9 +123,7 @@ const BusinessDetailScreen = ({ route, navigation }) => {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons
                 name={
-                  business.scheduler?.isActive
-                    ? 'checkmark-circle'
-                    : 'close-circle'
+                  business.scheduler?.isActive ? 'checkmark-circle' : 'close-circle'
                 }
                 size={20}
                 color={business.scheduler?.isActive ? '#4CAF50' : '#f44336'}
@@ -177,7 +162,19 @@ const BusinessDetailScreen = ({ route, navigation }) => {
           data={business.menus}
           renderItem={renderMenuItem}
           keyExtractor={(item) => item.menuId.toString()}
+          contentContainerStyle={{ paddingBottom: 45, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onViewableItemsChanged={handleViewableItemsChanged}
+          viewabilityConfig={{
+            itemVisiblePercentThreshold: 50,
+            waitForInteraction: true,
+          }}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          removeClippedSubviews={true}
+          initialNumToRender={10}
         />
       </View>
 
@@ -216,8 +213,8 @@ const BusinessDetailScreen = ({ route, navigation }) => {
           <View style={styles.modalContent}>
             {selectedMenuItem && (
               <>
-                <Image
-                  source={{ uri: selectedMenuItem.imageUrl }}
+                <ImageWithFallback
+                  src={selectedMenuItem.imageUrl}
                   style={styles.modalImage}
                   resizeMode="cover"
                 />
@@ -250,26 +247,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLOR.lightGray,
   },
-  headerContainer: {},
-  coverImage: {
-    width: width - 20,
-    height: 180,
-    marginHorizontal: 10,
-    marginTop: 12,
+  headerContainer: {
+    marginBottom: 0,
+  },
+  imageContainer: {
+    paddingHorizontal: 10,
+    marginTop: 10,
     marginBottom: 10,
+  },
+  coverImage: {
+    width: '100%',
+    height: 180,
     borderRadius: 12,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    backgroundColor: COLOR.lightGray,
     elevation: 2,
   },
 
   infoContainer: {
     paddingHorizontal: 12,
-    marginBottom: 8,
+    marginBottom: 3,
   },
   businessName: {
     fontSize: 22,
@@ -284,7 +283,7 @@ const styles = StyleSheet.create({
   rowInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   statusText: {
     fontSize: 14,
@@ -307,78 +306,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
 
-  menuItem: {
-    flexDirection: 'row',
-    marginHorizontal: 10,
-    marginBottom: 12,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    overflow: 'hidden',
-    elevation: 3,
-  },
-  menuImage: {
-    width: 84,
-    height: 92,
-  },
-  menuInfo: {
-    flex: 1,
-    paddingHorizontal: 10,
-    justifyContent: 'center',
-  },
-  menuName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  menuDescription: {
-    flex: 1,
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 14,
-    maxHeight: 50,
-  },
-  menuPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
-
-  quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 10,
-  },
-  quantityButton: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 2,
-    borderRadius: 20,
-  },
-  quantityCircle: {
-    marginHorizontal: 5,
-    backgroundColor: '#51b454ff',
-    borderRadius: 20,
-    minWidth: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  quantityText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-  },
-
   floatingCartButton: {
     position: 'absolute',
-    top: 309,
+    top: 297,
     right: 24,
     width: 56,
     height: 56,

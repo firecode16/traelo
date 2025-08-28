@@ -30,7 +30,7 @@ export default function InputField({
         {icon && <View style={styles.icon}>{icon}</View>}
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: "#000" }]}
           placeholder={label}
           value={value}
           onChangeText={onChangeText}

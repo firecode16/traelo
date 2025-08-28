@@ -29,7 +29,7 @@ const MapModal = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalBox}>
-          <Text style={styles.modalTitle}>Selecciona tu ubicación</Text>
+          <Text style={styles.modalTitle}>Selecciona la ubicación de entrega</Text>
 
           <View style={{ flex: 1 }}>
             <MapView
@@ -38,8 +38,14 @@ const MapModal = ({
               initialRegion={{
                 latitude: location.latitude,
                 longitude: location.longitude,
-                latitudeDelta: 0.002,
-                longitudeDelta: 0.002,
+                latitudeDelta: 0.001, // Adjusted for closer zoom
+                longitudeDelta: 0.001, // Adjusted for closer zoom
+              }}
+              region={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+                latitudeDelta: 0.001, // Adjusted for closer zoom
+                longitudeDelta: 0.001, // Adjusted for closer zoom
               }}
               onRegionChangeComplete={(reg) => {
                 if (reg && reg.latitude && reg.longitude) {

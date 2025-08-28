@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,32 @@ import {
   Modal,
   TextInput,
   StyleSheet,
-  Alert,
   Image,
   ScrollView,
   ActivityIndicator,
+  TouchableHighlight,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLOR } from '../../constants/Color';
-import { updateLogoBusinessById } from '../../services/BusinessService';
+import {
+  updateLogoBusinessById,
+  generateLogoUri,
+} from '../../services/BusinessService';
 import {
   getMenusByBusiness,
   createMenu,
   updateMenu,
   deleteMenu,
+  getImageByMenuId,
 } from '../../services/MenuService';
 
-import { API } from '../../constants/ApiConfig';
 import { categories } from '../../data/Categories';
+import { preloadImage } from '../../components/ImageCache';
+import useScrollHandler from '../../components/HandleScroll';
+import { MenuItem } from '../../components/MenuItem';
 
 const BusinessMenuScreen = () => {
   const [logoUri, setLogo] = useState(null);
@@ -36,6 +42,8 @@ const BusinessMenuScreen = () => {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [selectedMenu, setSelectedMenu] = useState(null);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -47,10 +55,16 @@ const BusinessMenuScreen = () => {
   const [invalidFields, setInvalidFields] = useState({});
   const [imageMeta, setImageMeta] = useState(null);
   const [isNewLogoSelected, setIsNewLogoSelected] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
 
-  const generateLogoUri = (businessId) => {
-    return `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(businessId)}?ts=${Date.now()}`;
-  };
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [deleteConfirmModalVisible, setDeleteConfirmModalVisible] = useState(false);
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [menuToDelete, setMenuToDelete] = useState(null);
+  const [visibleItems, setVisibleItems] = useState(new Set());
+  const { handleScroll, isScrolling, cleanup } = useScrollHandler();
 
   useEffect(() => {
     const loadMenus = async () => {
@@ -78,6 +92,36 @@ const BusinessMenuScreen = () => {
     }
   }, [logoUri]);
 
+  useEffect(() => {
+    if (!isScrolling && visibleItems.size > 0) {
+      const preloadImages = async () => {
+        // Precargar en paralelo
+        await Promise.all(
+          Array.from(visibleItems).map(async (menuId) => {
+            const imageUrl = getImageByMenuId(menuId);
+            return preloadImage(imageUrl);
+          }),
+        );
+      };
+      preloadImages();
+    }
+  }, [visibleItems, isScrolling]);
+
+  useEffect(() => {
+    return () => {
+      cleanup(); // cleanup on unmount
+    };
+  }, []);
+
+  // Handle scroll to track visible items
+  const handleViewableItemsChanged = useCallback(({ viewableItems }) => {
+    const newVisibleItems = new Set();
+    viewableItems.forEach(({ item }) => {
+      newVisibleItems.add(item.menuId);
+    });
+    setVisibleItems(newVisibleItems);
+  }, []);
+
   // callback se activa cuando la imagen se carga correctamente
   const handleLogoLoad = () => {
     setLogoLoaded(true);
@@ -90,25 +134,56 @@ const BusinessMenuScreen = () => {
     setLogoError(true);
   };
 
+  const handleImageError = useCallback((menuId) => {
+    setImageErrors((prev) => ({ ...prev, [menuId]: true }));
+  }, []);
+
   const openModal = (menu = null) => {
     if (menu) {
       setForm({
         name: menu.name,
         description: menu.description,
         price: menu.price.toString(),
+        category: menu.category || '',
       });
       setEditingMenuId(menu.menuId);
     } else {
-      setForm({ name: '', description: '', price: '' });
+      setForm({ name: '', description: '', price: '', category: '' });
       setEditingMenuId(null);
     }
     setModalVisible(true);
   };
 
+  const openViewModal = (menu, imageUri = null) => {
+    const imageToUse = imageUri || getImageByMenuId(menu.menuId);
+    setSelectedMenu({ ...menu, imageUri: imageToUse });
+    setViewModalVisible(true);
+  };
+
+  const showPermissionDeniedModal = () => {
+    setModalMessage('Se necesita acceso a la galería para seleccionar imágenes.');
+    setPermissionModalVisible(true);
+  };
+
+  const showErrorModal = (message) => {
+    setModalMessage(message);
+    setErrorModalVisible(true);
+  };
+
+  const showSuccessModal = (message) => {
+    setModalMessage(message);
+    setSuccessModalVisible(true);
+  };
+
+  const showDeleteConfirmModal = (menuId) => {
+    setMenuToDelete(menuId);
+    setDeleteConfirmModalVisible(true);
+  };
+
   const pickLogo = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Se necesita acceso a la galería.');
+      showPermissionDeniedModal();
       return;
     }
 
@@ -133,7 +208,7 @@ const BusinessMenuScreen = () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se necesita acceso a la galería.');
+        showPermissionDeniedModal();
         return;
       }
 
@@ -155,7 +230,7 @@ const BusinessMenuScreen = () => {
       }
     } catch (err) {
       console.error('Error al abrir galería:', err);
-      Alert.alert('Error', err.message);
+      showErrorModal(err.message || 'Error al abrir la galería');
     }
   };
 
@@ -244,10 +319,7 @@ const BusinessMenuScreen = () => {
     setInvalidFields(errors); // 🔴 actualiza los errores visuales
 
     if (Object.keys(errors).length > 0) {
-      console.warn(
-        'Validación:',
-        'Por favor completa todos los campos requeridos.',
-      );
+      showErrorModal('Por favor completa todos los campos requeridos.');
       return;
     }
 
@@ -286,32 +358,38 @@ const BusinessMenuScreen = () => {
       setModalVisible(false);
       resetForm();
       setIsNewLogoSelected(false); // Reiniciar el estado del logo
-      Alert.alert('Éxito', 'Menú guardado correctamente.');
+      showSuccessModal('Menú guardado correctamente.');
     } catch (error) {
       console.error('Error al guardar menú:', error);
-      Alert.alert('Error', 'No se pudo guardar el menú. Inténtalo de nuevo.');
+      showErrorModal('No se pudo guardar el menú. Inténtalo de nuevo.');
       return;
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    Alert.alert('Confirmar', '¿Eliminar este menú?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          setLoading(true);
-          await deleteMenu(id);
-          console.info('Menú eliminado con ID:', id);
-          const updatedMenus = await getMenusByBusiness(businessId);
-          setMenus(updatedMenus);
-          setLoading(false);
-        },
-      },
-    ]);
+  const handleDelete = useCallback((id) => {
+    showDeleteConfirmModal(id);
+  }, []);
+
+  const confirmDelete = async () => {
+    if (!menuToDelete) return;
+
+    setLoading(true);
+    try {
+      await deleteMenu(menuToDelete);
+      console.info('Menú eliminado con ID:', menuToDelete);
+      const updatedMenus = await getMenusByBusiness(businessId);
+      setMenus(updatedMenus);
+      setDeleteConfirmModalVisible(false);
+      showSuccessModal('Menú eliminado correctamente.');
+    } catch (error) {
+      console.error('Error al eliminar menú:', error);
+      showErrorModal('No se pudo eliminar el menú. Inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+      setMenuToDelete(null);
+    }
   };
 
   const resetForm = () => {
@@ -326,23 +404,18 @@ const BusinessMenuScreen = () => {
     setInvalidFields({});
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.menuName}>{item.name}</Text>
-        <Text style={styles.menuDesc}>{item.description}</Text>
-        <Text style={styles.menuPrice}>${item.price}</Text>
-      </View>
-      <TouchableOpacity
-        onPress={() => openModal(item)}
-        style={{ marginRight: 10 }}
-      >
-        <Ionicons name="create-outline" size={20} color={COLOR.orange} />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => handleDelete(item.menuId)}>
-        <Ionicons name="trash-outline" size={20} color={COLOR.red} />
-      </TouchableOpacity>
-    </View>
+  // Optimized renderItem
+  const renderItem = useCallback(
+    ({ item }) => (
+      <MenuItem
+        item={item}
+        onView={openViewModal}
+        onEdit={openModal}
+        onDelete={handleDelete}
+        onImageError={handleImageError}
+      />
+    ),
+    [],
   );
 
   if (loading) {
@@ -393,6 +466,17 @@ const BusinessMenuScreen = () => {
         keyExtractor={(item) => item.menuId.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 20 }}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onViewableItemsChanged={handleViewableItemsChanged}
+        viewabilityConfig={{
+          itemVisiblePercentThreshold: 70,
+          waitForInteraction: false,
+        }}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
       />
 
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -405,32 +489,32 @@ const BusinessMenuScreen = () => {
 
               <TextInput
                 placeholder="Nombre del producto"
-                placeholderTextColor='#9e9e9eff'
+                placeholderTextColor="#9e9e9eff"
                 value={form.name}
                 onChangeText={(text) => setForm({ ...form, name: text })}
                 style={[
-                  styles.input,
+                  [styles.input, { color: '#000' }],
                   invalidFields.name && styles.invalidInput,
                 ]}
               />
               <TextInput
                 placeholder="Descripción"
-                placeholderTextColor='#9e9e9eff'
+                placeholderTextColor="#9e9e9eff"
                 value={form.description}
                 onChangeText={(text) => setForm({ ...form, description: text })}
                 style={[
-                  styles.input,
+                  [styles.input, { color: '#000' }],
                   invalidFields.name && styles.invalidInput,
                 ]}
               />
               <TextInput
                 placeholder="Precio"
-                placeholderTextColor='#9e9e9eff'
+                placeholderTextColor="#9e9e9eff"
                 keyboardType="numeric"
                 value={form.price}
                 onChangeText={(text) => setForm({ ...form, price: text })}
                 style={[
-                  styles.input,
+                  [styles.input, { color: '#000' }],
                   invalidFields.name && styles.invalidInput,
                 ]}
               />
@@ -463,7 +547,12 @@ const BusinessMenuScreen = () => {
                     />
                   ))}
                 </Picker>
-                <Ionicons name="chevron-down" size={20} color="#555" style={styles.pickerIcon} />
+                <Ionicons
+                  name="chevron-down"
+                  size={20}
+                  color="#555"
+                  style={styles.pickerIcon}
+                />
               </View>
 
               {/* Picker de imagen */}
@@ -507,6 +596,163 @@ const BusinessMenuScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Modal for enlarged view of the image */}
+      <Modal
+        visible={viewModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setViewModalVisible(false)}
+      >
+        <View style={styles.viewModalOverlay}>
+          <View style={styles.viewModalContent}>
+            {selectedMenu && (
+              <>
+                {selectedMenu.imageUri ? (
+                  <Image
+                    source={{ uri: selectedMenu.imageUri }}
+                    style={styles.expandedImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.expandedPlaceholder}>
+                    <Ionicons name="image-outline" size={64} color="#ccc" />
+                    <Text style={styles.expandedPlaceholderText}>
+                      Imagen no disponible
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.menuDetails}>
+                  <Text style={styles.expandedMenuName}>
+                    {selectedMenu.name}
+                  </Text>
+                  <Text style={styles.expandedMenuDesc}>
+                    {selectedMenu.description}
+                  </Text>
+                  <Text style={styles.expandedMenuPrice}>
+                    ${selectedMenu.price}
+                  </Text>
+                </View>
+
+                <TouchableHighlight
+                  style={styles.okButton}
+                  underlayColor="#c5c6c5ff"
+                  onPress={() => setViewModalVisible(false)}
+                >
+                  <Text style={styles.okButtonText}>OK</Text>
+                </TouchableHighlight>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={successModalVisible}
+        onRequestClose={() => setSuccessModalVisible(false)}
+      >
+        <View style={styles.customModalOverlay}>
+          <View style={styles.customModalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="checkmark-circle" size={32} color="#10b981" />
+              <Text style={styles.customModalTitle}>Éxito</Text>
+            </View>
+            <Text style={styles.customModalMessage}>{modalMessage}</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.successButton]}
+              onPress={() => setSuccessModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Aceptar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Error modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={errorModalVisible}
+        onRequestClose={() => setErrorModalVisible(false)}
+      >
+        <View style={styles.customModalOverlay}>
+          <View style={styles.customModalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="close-circle" size={32} color="#ef4444" />
+              <Text style={styles.customModalTitle}>Error</Text>
+            </View>
+            <Text style={styles.customModalMessage}>{modalMessage}</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.errorButton]}
+              onPress={() => setErrorModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Aceptar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Deletion confirmation mode */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={deleteConfirmModalVisible}
+        onRequestClose={() => setDeleteConfirmModalVisible(false)}
+      >
+        <View style={styles.customModalOverlay}>
+          <View style={styles.customModalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="warning" size={32} color="#f59e0b" />
+              <Text style={styles.customModalTitle}>Confirmar</Text>
+            </View>
+            <Text style={styles.customModalMessage}>
+              ¿Estás seguro de que deseas eliminar este menú?
+            </Text>
+            <View style={styles.confirmModalActions}>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, styles.cancelButton]}
+                onPress={() => setDeleteConfirmModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, styles.deleteButton]}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.modalButtonText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Permission mode denied */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={permissionModalVisible}
+        onRequestClose={() => setPermissionModalVisible(false)}
+      >
+        <View style={styles.customModalOverlay}>
+          <View style={styles.customModalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="alert-circle" size={32} color="#f59e0b" />
+              <Text style={styles.customModalTitle}>Permiso requerido</Text>
+            </View>
+            <Text style={styles.customModalMessage}>{modalMessage}</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.warningButton]}
+              onPress={() => setPermissionModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Entendido</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -528,25 +774,7 @@ const styles = StyleSheet.create({
     color: COLOR.white,
     fontWeight: 'bold',
   },
-  card: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  menuName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  menuDesc: {
-    color: '#555',
-  },
-  menuPrice: {
-    color: COLOR.orange,
-    marginTop: 4,
-  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
@@ -576,7 +804,7 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10, // espacio inferior agregado
+    marginTop: 10,
   },
   imagePicker: {
     alignItems: 'center',
@@ -682,6 +910,155 @@ const styles = StyleSheet.create({
   invalidInput: {
     borderColor: COLOR.red,
     borderWidth: 2,
+  },
+  viewModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  viewModalContent: {
+    width: '95%',
+    maxHeight: '85%',
+    backgroundColor: COLOR.white,
+    borderRadius: 16,
+    padding: 15,
+    alignItems: 'center',
+    elevation: 3,
+  },
+  okButton: {
+    marginTop: 10,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  okButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  expandedImage: {
+    width: '100%',
+    height: 330,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  expandedPlaceholder: {
+    width: '100%',
+    height: 300,
+    borderRadius: 10,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  expandedPlaceholderText: {
+    color: '#888',
+    marginTop: 10,
+    fontSize: 16,
+  },
+  menuDetails: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  expandedMenuName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  expandedMenuDesc: {
+    fontSize: 16,
+    color: '#555',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  expandedMenuPrice: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLOR.orange,
+  },
+
+  customModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  customModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  customModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  customModalMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#555',
+  },
+  modalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  confirmModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  successButton: {
+    backgroundColor: '#10b981',
+  },
+  errorButton: {
+    backgroundColor: '#ef4444',
+  },
+  warningButton: {
+    backgroundColor: '#f59e0b',
+  },
+  cancelButton: {
+    backgroundColor: '#6b7280',
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 15,
   },
 });
 

@@ -11,10 +11,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import LogoTraelo from '../../assets/images/main_logo_traelo.png';
 import CustomButton from '../../components/CustomButton';
@@ -63,76 +64,92 @@ const LoginScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeView}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-        >
-          <View style={styles.container}>
-            <StatusBar animated={true} style="light" />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.container}>
+              <StatusBar animated={true} style="light" />
 
-            <View style={{ alignItems: 'center' }}>
-              <Image source={LogoTraelo} style={styles.logo} />
-            </View>
+              <View style={{ alignItems: 'center' }}>
+                <Image source={LogoTraelo} style={styles.logo} />
+              </View>
 
-            <Text style={styles.subtitle}>Tu antojo, directo a tu casa</Text>
+              <Text style={styles.subtitle}>Tu antojo, directo a tu casa</Text>
 
-            <InputField
-              label={'Usuario'}
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                setErrors((prev) => ({ ...prev, email: null }));
-              }}
-              icon={
-                <AntDesign
-                  name="user"
-                  size={20}
-                  color="#666"
-                  style={{ marginRight: 5 }}
-                />
-              }
-              error={errors.email}
-            />
-
-            <InputField
-              label={'Password'}
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setErrors((prev) => ({ ...prev, password: null }));
-              }}
-              icon={
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#666"
-                  style={{ marginRight: 5 }}
-                />
-              }
-              inputType="password"
-              error={errors.password}
-            />
-
-            {isLoading ? (
-              <ActivityIndicator
-                size="large"
-                color={COLOR.orange}
-                style={{ marginVertical: 20 }}
+              <InputField
+                label={'Usuario'}
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setErrors((prev) => ({ ...prev, email: null }));
+                }}
+                icon={
+                  <AntDesign
+                    name="user"
+                    size={20}
+                    color="#666"
+                    style={{ marginRight: 5 }}
+                  />
+                }
+                error={errors.email}
               />
-            ) : (
-              <CustomButton label={'Iniciar sesión'} onPress={handleLogin} />
-            )}
 
-            <View style={styles.registerPrompt}>
-              <Text style={styles.promptText}>¿Eres nuevo usuario?</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                <Text style={styles.registerLink}> Regístrate</Text>
-              </TouchableOpacity>
+              <InputField
+                label={'Password'}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setErrors((prev) => ({ ...prev, password: null }));
+                }}
+                icon={
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={20}
+                    color="#666"
+                    style={{ marginRight: 5 }}
+                  />
+                }
+                inputType="password"
+                error={errors.password}
+              />
+
+              {isLoading ? (
+                <ActivityIndicator
+                  size="large"
+                  color={COLOR.orange}
+                  style={{ marginVertical: 20 }}
+                />
+              ) : (
+                <CustomButton label={'Iniciar sesión'} onPress={handleLogin} />
+              )}
+
+              <View style={styles.registerPrompt}>
+                <Text style={styles.promptText}>¿Eres nuevo usuario?</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Register')}
+                >
+                  <Text style={styles.registerLink}> Regístrate</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.recoveryPrompt}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('RecoveryPassword')}
+                >
+                  <Text style={styles.recoveryLink}>
+                    ¿Olvidaste tu contraseña?
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
 
         {showErrorModal && (
           <View style={styles.modalOverlay}>
@@ -159,10 +176,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLOR.lightGray,
   },
-  container: {
-    flex: 1,
-    padding: 20,
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
+  },
+  container: {
+    padding: 20,
   },
   logo: {
     width: 200,
@@ -174,7 +193,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 20,
     fontWeight: '500',
-    color: '#333',
+    color: '#515151ff',
     marginBottom: 20,
   },
   errorText: {
@@ -187,6 +206,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 30,
   },
+  recoveryPrompt: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
   promptText: {
     fontFamily: 'Roboto-Medium',
     fontSize: 15,
@@ -196,6 +219,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#3498DB',
     fontFamily: 'Roboto-Medium',
+  },
+  recoveryLink: {
+    fontSize: 15,
+    color: '#E74C3C',
+    fontFamily: 'Roboto-Medium',
+    textDecorationLine: 'underline',
   },
   modalOverlay: {
     position: 'absolute',

@@ -1,4 +1,3 @@
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getBusinessByUserId } from './BusinessService';
@@ -26,13 +25,17 @@ export const loginUser = async ({ username, password }) => {
     const claims = decodeJWT(result.token);
     console.log('Claims JWT:', claims);
 
-    let business = { businessId: '', description: '', address: '' };
+    let business = { businessId: '', description: '', address: '', acceptCash: false, acceptTransfer: false, bankClabe: '', bankCard: '' };
 
     if (claims.role && claims.role[0] === 'ROLE_BUSINESS') {
       const res = await getBusinessByUserId(claims.userId);
       business.businessId = res.businessId || '';
       business.description = res.description || '';
       business.address = res.address || '';
+      business.acceptCash = res.acceptCash || false;
+      business.acceptTransfer = res.acceptTransfer || false;
+      business.bankClabe = res.bankClabe || '';
+      business.bankCard = res.bankCard || '';
     }
 
     const userData = {
@@ -45,9 +48,14 @@ export const loginUser = async ({ username, password }) => {
       businessId: business.businessId || '',
       description: business.description || '',
       address: business.address || '',
+      acceptCash: business.acceptCash || false,
+      acceptTransfer: business.acceptTransfer || false,
+      bankClabe: business.bankClabe || '',
+      bankCard: business.bankCard || '',
       role: claims.role[0],
       createdAt: claims.date,
     };
+
     await AsyncStorage.setItem('userInfo', JSON.stringify(userData));
     return result.token || result.jwt;
   } catch (error) {
@@ -97,5 +105,53 @@ export const logoutUser = async (navigation) => {
     });
   } catch (err) {
     console.error('Error al cerrar sesión', err);
+  }
+};
+
+export const resetPassword = async (username, newPassword) => {
+  try {
+    const response = await fetch(API.AUTH.RESET_PASSWORD, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: username.trim(),
+        newPassword: newPassword,
+      }),
+    });
+
+    const contentType = response.headers.get('content-type');
+    let data;
+
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { message: text || 'Error desconocido' };
+    }
+
+    if (response.ok) {
+      return {
+        success: true,
+        message: 'Tu contraseña ha sido restablecida correctamente',
+      };
+    } else if (response.status === 404) {
+      return {
+        success: false,
+        message: 'El nombre del usuario no existe. Por favor verifica e intenta nuevamente.',
+      };
+    } else {
+      return {
+        success: false,
+        message: data.message || 'Ocurrió un error al restablecer tu contraseña',
+      };
+    }
+  } catch (error) {
+    console.error('Error en resetPassword:', error);
+    return {
+      success: false,
+      message: 'No se pudo conectar al servidor: ' + error.message,
+    };
   }
 };

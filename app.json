@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash_traelo.png",
       "resizeMode": "cover",
-      "backgroundColor": "#F37A01"
+      "backgroundColor": "#ff6b00"
     },
     "ios": {
       "supportsTablet": true,
@@ -21,9 +21,10 @@
       }
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive_icon_traelo.png",
-        "backgroundColor": "#F37A01"
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "backgroundColor": "#ff6b00"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -59,7 +60,6 @@
       "eas": {
         "projectId": "98633fed-0a64-4bc4-89f2-ef270179d18b"
       }
-    },
-    "owner": "hfredi35"
+    }
   }
 }

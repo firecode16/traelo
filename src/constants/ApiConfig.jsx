@@ -8,6 +8,8 @@ export const API = {
     SIGNUP: `${BASE_URL}/auth/signup`,
     USER_INFO: `${BASE_URL}/auth/userInfo`,
     UPDATE: (userId) => `${BASE_URL}/auth/update/${userId}`,
+    RESET_PASSWORD: `${BASE_URL}/auth/resetPassword`,
+    REFRESH_TOKEN: `${BASE_URL}/auth/refreshToken`,
   },
   BUSINESS: {
     CREATE: `${BASE_URL}/business/create`,

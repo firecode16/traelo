@@ -8,12 +8,16 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableHighlight,
+  Platform,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLOR } from '../../constants/Color';
 import { API } from '../../constants/ApiConfig';
 import { getAllBusinesses } from '../../services/BusinessService';
 import SearchBar from '../../components/SearchBar';
+import ImageWithFallback from '../../components/ImageWithFallback';
+import { preloadImage } from '../../components/ImageCache';
+import useScrollHandler from '../../components/HandleScroll';
 
 const HomeScreen = ({ navigation }) => {
   const [businesses, setBusinesses] = useState([]);
@@ -22,6 +26,7 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const { handleScroll, isScrolling, cleanup } = useScrollHandler();
   const defaultLogoUrl = 'https://img.icons8.com/ios-filled/500/shop.png';
   const PAGE_SIZE = 10;
 
@@ -31,16 +36,25 @@ const HomeScreen = ({ navigation }) => {
     try {
       const data = await getAllBusinesses(pageNumber, PAGE_SIZE);
 
-      const businessesWithImages = data.content
-        .filter((business) => business.menu && business.menu.length > 0)
-        .map((business) => {
-          const logoUrl = `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(business.businessId)}?ts=${Date.now()}`;
-          const menusWithImages = business.menu.map((menu) => ({
-            ...menu,
-            imageUrl: `${API.MENU.GET_IMAGE_BY_MENU_ID(menu.menuId)}?ts=${Date.now()}`,
-          }));
-          return { ...business, logoUrl, menus: menusWithImages };
-        });
+      const businessesWithImages = await Promise.all(
+        data.content
+          .filter((business) => business.menu && business.menu.length > 0)
+          .map(async (business) => {
+            const logoUrl = `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(business.businessId)}?ts=${Date.now()}`;
+
+            await preloadImage(logoUrl);
+
+            const menusWithImages = await Promise.all(
+              business.menu.map(async (menu) => {
+                const imageUrl = `${API.MENU.GET_IMAGE_BY_MENU_ID(menu.menuId)}?ts=${Date.now()}`;
+                await preloadImage(imageUrl);
+                return { ...menu, imageUrl };
+              }),
+            );
+
+            return { ...business, logoUrl, menus: menusWithImages };
+          }),
+      );
 
       if (refresh) {
         setBusinesses(businessesWithImages);
@@ -60,10 +74,11 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadBusinesses(0, true);
+    return cleanup; // Cleanup on unmount
   }, []);
 
   const handleLoadMore = () => {
-    if (hasMore && !loading) {
+    if (hasMore && !loading && !isScrolling) {
       loadBusinesses(page + 1);
     }
   };
@@ -107,10 +122,8 @@ const HomeScreen = ({ navigation }) => {
       onPress={() => navigation.navigate('BusinessDetail', { business })}
     >
       <View>
-        <Image
-          source={{ uri: business.logoUrl || defaultLogoUrl }}
-          style={styles.logo}
-        />
+        <ImageWithFallback src={business.logoUrl} style={styles.logo} />
+
         <View style={styles.headerRow}>
           <Text style={styles.businessName}>{business.fullName}</Text>
           <View
@@ -131,7 +144,7 @@ const HomeScreen = ({ navigation }) => {
 
         {(business.menus || []).slice(0, 2).map((menu) => (
           <View key={menu.menuId} style={styles.menuItem}>
-            <Image source={{ uri: menu.imageUrl }} style={styles.menuImage} />
+            <ImageWithFallback src={menu.imageUrl} style={styles.menuImage} />
             <View style={styles.menuInfo}>
               <Text style={styles.menuName}>{menu.name}</Text>
               <Text style={styles.menuPrice}>${menu.price}</Text>
@@ -180,6 +193,14 @@ const HomeScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={!loading && <EmptyList />}
+        windowSize={3} // Reduces the number of off-screen rendered items
+        maxToRenderPerBatch={3} // Limits the number of rendered items per batch
+        updateCellsBatchingPeriod={100} // Group UI updates
+        removeClippedSubviews={Platform.OS === 'android'} // Delete off-screen views
+        initialNumToRender={3} // Initial number of elements to render
+
+        onScroll={handleScroll}
+        scrollEventThrottle={150} // Throttle scroll events for better performance
       />
     </View>
   );

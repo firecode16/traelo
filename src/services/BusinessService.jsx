@@ -113,3 +113,7 @@ export const updateLogoBusinessById = async (businessId, logoData) => {
     throw error;
   }
 };
+
+export const generateLogoUri = (businessId) => {
+  return `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(businessId)}?ts=${Date.now()}`;
+};

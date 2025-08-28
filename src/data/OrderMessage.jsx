@@ -6,6 +6,8 @@ export const generateOrderMessage = (
   customerNotes,
   deliveryMethod,
   paymentAmount,
+  paymentMethod,
+  deliveryReference
 ) => {
   let message = `📦 *Nuevo Pedido vía Tráelo* 🛵\n\n`;
 
@@ -25,6 +27,15 @@ export const generateOrderMessage = (
     message += `📍 *Ubicación:* ${location}\n`;
   }
 
+  if (deliveryReference && deliveryMethod === 'A domicilio') {
+    message += `🏠 *Referencia:* ${deliveryReference}\n`;
+  }
+
+  if (paymentMethod) {
+    const paymentMethodText = paymentMethod === 'cash' ? 'Efectivo' : 'Transferencia Bancaria';
+    message += `💳 *Método de pago:* ${paymentMethodText}\n`;
+  }
+
   if (customerNotes?.trim()) {
     message += `\n📝 *Notas:* ${customerNotes.trim()}\n`;
   }
@@ -40,7 +51,7 @@ export const generateOrderMessage = (
 
   message += `\n💰 *Total: $${total}*\n`;
 
-  if (paymentAmount) {
+  if (paymentMethod === 'cash' && paymentAmount) {
     const pago = parseFloat(paymentAmount);
     message += `💵 *Pagaré con:* $${pago}\n`;
 

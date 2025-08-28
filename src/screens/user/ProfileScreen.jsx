@@ -11,6 +11,8 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,6 +28,8 @@ const ProfileScreen = () => {
   });
   const [editable, setEditable] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -61,6 +65,11 @@ const ProfileScreen = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const showErrorModal = (message) => {
+    setErrorMessage(message);
+    setErrorModalVisible(true);
+  };
+
   const handleSave = async () => {
     try {
       const updated = { ...profile, ...form };
@@ -76,7 +85,7 @@ const ProfileScreen = () => {
       setEditable(false);
       Alert.alert('Actualizado', 'Los cambios han sido guardados.');
     } catch (err) {
-      Alert.alert('Error', 'No se pudieron guardar los cambios.');
+      showErrorModal('No se pudieron guardar los cambios. Por favor, intenta nuevamente.');
     }
   };
 
@@ -157,6 +166,29 @@ const ProfileScreen = () => {
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={errorModalVisible}
+        onRequestClose={() => setErrorModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="close-circle" size={24} color="#ef4444" />
+              <Text style={styles.modalTitle}>Error</Text>
+            </View>
+            <Text style={styles.modalMessage}>{errorMessage}</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.errorButton]}
+              onPress={() => setErrorModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Aceptar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -224,5 +256,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  modalMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#555',
+  },
+  modalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  errorButton: {
+    backgroundColor: '#ef4444',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });
+
 export default ProfileScreen;

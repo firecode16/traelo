@@ -51,3 +51,7 @@ export const deleteMenu = async (menuId) => {
     throw error;
   }
 };
+
+export const getImageByMenuId = (menuId) => {
+  return `${API.MENU.GET_IMAGE_BY_MENU_ID(menuId)}?ts=${Date.now()}`;
+};
