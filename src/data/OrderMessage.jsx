@@ -7,7 +7,8 @@ export const generateOrderMessage = (
   deliveryMethod,
   paymentAmount,
   paymentMethod,
-  deliveryReference
+  deliveryReference,
+  deliveryTime,
 ) => {
   let message = `📦 *Nuevo Pedido vía Tráelo* 🛵\n\n`;
 
@@ -29,6 +30,10 @@ export const generateOrderMessage = (
 
   if (deliveryReference && deliveryMethod === 'A domicilio') {
     message += `🏠 *Referencia:* ${deliveryReference}\n`;
+  }
+
+  if (deliveryTime) {
+    message += `⏱️ *Tiempo de entrega:* ${deliveryTime}\n`;
   }
 
   if (paymentMethod) {

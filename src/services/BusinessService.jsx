@@ -12,6 +12,7 @@ export const registerBusiness = async (claims, userData) => {
         userId: claims.userId,
         username: claims.username,
         fullName: claims.fullName, // --> Use fullName as business name
+        description: userData.description,
         email: claims.email,
         phone: claims.phone,
         address: userData.address,

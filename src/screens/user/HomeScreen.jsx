@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  Image,
   FlatList,
   ActivityIndicator,
   StyleSheet,
@@ -27,7 +26,6 @@ const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const { handleScroll, isScrolling, cleanup } = useScrollHandler();
-  const defaultLogoUrl = 'https://img.icons8.com/ios-filled/500/shop.png';
   const PAGE_SIZE = 10;
 
   const loadBusinesses = async (pageNumber = 0, refresh = false) => {
@@ -36,34 +34,36 @@ const HomeScreen = ({ navigation }) => {
     try {
       const data = await getAllBusinesses(pageNumber, PAGE_SIZE);
 
-      const businessesWithImages = await Promise.all(
-        data.content
-          .filter((business) => business.menu && business.menu.length > 0)
-          .map(async (business) => {
-            const logoUrl = `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(business.businessId)}?ts=${Date.now()}`;
-
-            await preloadImage(logoUrl);
-
-            const menusWithImages = await Promise.all(
-              business.menu.map(async (menu) => {
-                const imageUrl = `${API.MENU.GET_IMAGE_BY_MENU_ID(menu.menuId)}?ts=${Date.now()}`;
-                await preloadImage(imageUrl);
-                return { ...menu, imageUrl };
-              }),
-            );
-
-            return { ...business, logoUrl, menus: menusWithImages };
-          }),
-      );
+      // 🚀 Paso 1: construir URLs solo para negocios con menú
+      const businessesWithUrls = data.content
+        .filter((business) => business.menu && business.menu.length > 0)
+        .map((business) => {
+          const logoUrl = `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(business.businessId)}?v=${business.updatedAt}`;
+          const menusWithImages = (business.menu || []).map((menu) => ({
+            ...menu,
+            imageUrl: `${API.MENU.GET_IMAGE_BY_MENU_ID(menu.menuId)}?v=${menu.updatedAt}`,
+          }));
+          return { ...business, logoUrl, menus: menusWithImages };
+        });
 
       if (refresh) {
-        setBusinesses(businessesWithImages);
+        setBusinesses(businessesWithUrls);
       } else {
-        setBusinesses((prev) => [...prev, ...businessesWithImages]);
+        setBusinesses((prev) => [...prev, ...businessesWithUrls]);
       }
 
       setPage(data.page);
       setHasMore(!data.last);
+
+      // 🚀 Paso 2: prefetch en background (no bloquea UI)
+      setTimeout(() => {
+        const urls = [];
+        businessesWithUrls.forEach((b) => {
+          urls.push(b.logoUrl);
+          (b.menus || []).forEach((m) => urls.push(m.imageUrl));
+        });
+        Promise.all(urls.map((u) => preloadImage(u))).catch(() => {});
+      }, 0);
     } catch (error) {
       console.error('Error cargando negocios:', error);
     } finally {
@@ -193,12 +193,11 @@ const HomeScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={!loading && <EmptyList />}
-        windowSize={3} // Reduces the number of off-screen rendered items
-        maxToRenderPerBatch={3} // Limits the number of rendered items per batch
+        windowSize={5} // Reduces the number of off-screen rendered items
+        maxToRenderPerBatch={5} // Limits the number of rendered items per batch
         updateCellsBatchingPeriod={100} // Group UI updates
         removeClippedSubviews={Platform.OS === 'android'} // Delete off-screen views
-        initialNumToRender={3} // Initial number of elements to render
-
+        initialNumToRender={5} // Initial number of elements to render
         onScroll={handleScroll}
         scrollEventThrottle={150} // Throttle scroll events for better performance
       />
@@ -224,7 +223,6 @@ const styles = StyleSheet.create({
     padding: 12,
     elevation: 2,
     backgroundColor: '#fff',
-    // shadow iOS
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -258,7 +256,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
   },
-
   description: {
     marginBottom: 8,
     color: '#555',

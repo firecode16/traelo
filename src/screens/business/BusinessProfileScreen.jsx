@@ -33,6 +33,8 @@ const BusinessProfileScreen = () => {
     acceptTransfer: false,
     bankClabe: '',
     bankCard: '',
+    pickUp: false,
+    atHome: false,
   });
   const [editable, setEditable] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,8 @@ const BusinessProfileScreen = () => {
             acceptTransfer: user.acceptTransfer || false,
             bankClabe: user.bankClabe || '',
             bankCard: user.bankCard || '',
+            pickUp: user.pickUp || false,
+            atHome: user.atHome || false,
           });
         }
       } catch (error) {
@@ -294,6 +298,37 @@ const BusinessProfileScreen = () => {
                     />
                   </View>
                 )}
+              </View>
+            </View>
+
+            {/* Delivery Methods Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🚚 Métodos de Entrega Aceptados</Text>
+
+              <View style={styles.paymentMethod}>
+                <View style={styles.paymentMethodRow}>
+                  <Text style={styles.paymentMethodLabel}>🏪 Para recoger</Text>
+                  <Switch
+                    value={form.pickUp}
+                    onValueChange={(value) => handleChange('pickUp', value)}
+                    disabled={!editable}
+                    trackColor={{ false: '#767577', true: '#81b0ff' }}
+                    thumbColor={form.pickUp ? '#f5dd4b' : '#f4f3f4'}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.paymentMethod}>
+                <View style={styles.paymentMethodRow}>
+                  <Text style={styles.paymentMethodLabel}>🏠 A domicilio</Text>
+                  <Switch
+                    value={form.atHome}
+                    onValueChange={(value) => handleChange('atHome', value)}
+                    disabled={!editable}
+                    trackColor={{ false: '#767577', true: '#81b0ff' }}
+                    thumbColor={form.atHome ? '#f5dd4b' : '#f4f3f4'}
+                  />
+                </View>
               </View>
             </View>
 

@@ -29,7 +29,7 @@ const CartScreen = ({ route, navigation }) => {
   const { cartItems = {}, business, onGoBack } = route.params;
   const [profile, setProfile] = useState(null);
   const [customerNotes, setCustomerNotes] = useState('');
-  const [deliveryMethod, setDeliveryMethod] = useState('A domicilio');
+  const [deliveryMethod, setDeliveryMethod] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [showPaymentWarning, setShowPaymentWarning] = useState(false);
@@ -40,6 +40,21 @@ const CartScreen = ({ route, navigation }) => {
     bankCard: business.bankCard || '',
     bankClabe: business.bankClabe || '',
   };
+
+  const deliveryMethods = {
+    pickUp: business.pickUp || false,
+    atHome: business.atHome || false,
+  };
+
+  useEffect(() => {
+    if (business) {
+      if (business.atHome) {
+        setDeliveryMethod('A domicilio');
+      } else if (business.pickUp) {
+        setDeliveryMethod('Para recoger');
+      }
+    }
+  }, [business]);
 
   const [cartState, setCartState] = useState(() => {
     if (!business?.menus || !cartItems) return [];
@@ -158,7 +173,7 @@ const CartScreen = ({ route, navigation }) => {
 
     setTimeout(() => {
       setShowCopiedFeedback(false);
-    }, 2000);
+    }, 1000);
   };
 
   const confirmOrder = async () => {
@@ -197,6 +212,7 @@ const CartScreen = ({ route, navigation }) => {
     console.log('Enviando pedido a WhatsApp...', business.phone);
     const businessPhone = business.phone || '000000000';
     const locationUrl = `https://www.google.com/maps?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`;
+    const deliveryTime = '25 a 35 minutos';
 
     const message = generateOrderMessage(
       business.fullName,
@@ -208,6 +224,7 @@ const CartScreen = ({ route, navigation }) => {
       paymentMethod === 'cash' ? paymentAmount : '',
       paymentMethod,
       deliveryReference,
+      deliveryTime,
     );
 
     const url = `https://wa.me/${businessPhone}?text=${message}`;
@@ -339,41 +356,39 @@ const CartScreen = ({ route, navigation }) => {
                       🚚 Método de entrega
                     </Text>
                     <View style={styles.deliveryMethodContainer}>
-                      {['A domicilio', 'Para recoger'].map((method) => {
-                        const iconName = method === 'A domicilio' ? 'home-outline' : 'walk-outline';
-
-                        return (
+                      {[
+                        { label: 'A domicilio', value: deliveryMethods.atHome, icon: 'home-outline' },
+                        { label: 'Para recoger', value: deliveryMethods.pickUp, icon: 'walk-outline' },
+                      ]
+                        .filter((method) => method.value)
+                        .map((method) => (
                           <TouchableOpacity
-                            key={method}
-                            onPress={() => setDeliveryMethod(method)}
+                            key={method.label}
+                            onPress={() => setDeliveryMethod(method.label)}
                             style={[
                               styles.deliveryOption,
-                              deliveryMethod === method &&
-                              styles.selectedOption,
+                              deliveryMethod === method.label && styles.selectedOption,
                             ]}
                           >
                             <Ionicons
-                              name={iconName}
+                              name={method.icon}
                               size={18}
-                              color={
-                                deliveryMethod === method ? '#fff' : '#333'
-                              }
+                              color={deliveryMethod === method.label ? '#fff' : '#333'}
                               style={{ marginRight: 6 }}
                             />
                             <Text
                               style={{
-                                color: deliveryMethod === method ? '#fff' : '#333',
+                                color: deliveryMethod === method.label ? '#fff' : '#333',
                                 fontWeight: 'bold',
                               }}
                             >
-                              {method}
+                              {method.label}
                             </Text>
                           </TouchableOpacity>
-                        );
-                      })}
+                        ))}
                     </View>
 
-                    {deliveryMethod === 'A domicilio' && (
+                    {deliveryMethod === 'A domicilio' && business.atHome && (
                       <>
                         <Text style={styles.sectionTitle}>
                           📍 Referencia de entrega

@@ -23,6 +23,7 @@ const RegisterScreen = ({ navigation }) => {
   const [form, setForm] = useState({
     role: '',
     fullName: '',
+    description: '',
     username: '',
     email: '',
     password: '',
@@ -57,6 +58,9 @@ const RegisterScreen = ({ navigation }) => {
 
     if (!form.role) newErrors.role = 'Selecciona un rol válido';
     if (!form.fullName.trim()) newErrors.fullName = 'Nombre requerido';
+    if (form.role === 'ROLE_BUSINESS' && !form.description.trim()) {
+      newErrors.description = 'Descripción requerido';
+    }
     if (!form.username.trim()) newErrors.username = 'Usuario requerido';
     if (!form.email.trim()) newErrors.email = 'Email requerido';
     else if (!/^\S+@\S+\.\S+$/.test(form.email))
@@ -88,6 +92,7 @@ const RegisterScreen = ({ navigation }) => {
           userId: Date.now(),
           roles: [form.role],
           fullName: form.fullName,
+          description: form.role === 'ROLE_BUSINESS' ? form.description : null,
           username: form.username,
           email: form.email,
           phone: form.phone,
@@ -127,7 +132,7 @@ const RegisterScreen = ({ navigation }) => {
           <View style={styles.contentWrapper}>
             <Text style={styles.title}>Crea tu cuenta</Text>
 
-            <Text style={styles.label}>Selecciona tu rol:</Text>
+            <Text style={styles.label}>Registrarme como:</Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={form.role}
@@ -135,7 +140,7 @@ const RegisterScreen = ({ navigation }) => {
                 style={styles.picker}
               >
                 <Picker.Item
-                  label="Selecciona tu rol..."
+                  label="Registrarme como..."
                   value=""
                   style={{ color: '#9e9e9eff' }}
                   enabled={false}
@@ -163,6 +168,22 @@ const RegisterScreen = ({ navigation }) => {
             />
             {errors.fullName && (
               <Text style={styles.errorText}>{errors.fullName}</Text>
+            )}
+
+            {form.role === 'ROLE_BUSINESS' && (
+              <>
+                <Text style={styles.label}>Descripción del negocio</Text>
+                <TextInput
+                  placeholder="Eje. Somos un negocio familiar..."
+                  placeholderTextColor="#9e9e9eff"
+                  value={form.description}
+                  onChangeText={(text) => handleChange('description', text)}
+                  style={[styles.input, { color: '#000' }]}
+                />
+                {errors.description && (
+                  <Text style={styles.errorText}>{errors.description}</Text>
+                )}
+              </>
             )}
 
             <TextInput
@@ -228,7 +249,7 @@ const RegisterScreen = ({ navigation }) => {
               <>
                 <Text style={styles.label}>Dirección del negocio</Text>
                 <TextInput
-                  placeholder="Ej. Calle 123, Col. Centro"
+                  placeholder="Eje. Calle 123, Col. Centro"
                   placeholderTextColor="#9e9e9eff"
                   value={form.address}
                   onChangeText={(text) => handleChange('address', text)}
@@ -370,7 +391,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins-SemiBold',
     marginBottom: 5,
-    color: COLOR.black,
+    color: '#3d3c3cff',
   },
   pickerContainer: {
     position: 'relative',

@@ -4,12 +4,12 @@ import { getBusinessByUserId } from './BusinessService';
 import { decodeJWT } from '../util/JwtUtils';
 import { API } from '../constants/ApiConfig';
 
-export const loginUser = async ({ username, password }) => {
+export const loginUser = async ({ identifier, password }) => {
   try {
     const response = await fetch(API.AUTH.LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     if (response.status === 403) {
@@ -25,7 +25,7 @@ export const loginUser = async ({ username, password }) => {
     const claims = decodeJWT(result.token);
     console.log('Claims JWT:', claims);
 
-    let business = { businessId: '', description: '', address: '', acceptCash: false, acceptTransfer: false, bankClabe: '', bankCard: '' };
+    let business = { businessId: '', description: '', address: '', acceptCash: false, acceptTransfer: false, bankClabe: '', bankCard: '', pickUp: false, atHome: false };
 
     if (claims.role && claims.role[0] === 'ROLE_BUSINESS') {
       const res = await getBusinessByUserId(claims.userId);
@@ -36,6 +36,8 @@ export const loginUser = async ({ username, password }) => {
       business.acceptTransfer = res.acceptTransfer || false;
       business.bankClabe = res.bankClabe || '';
       business.bankCard = res.bankCard || '';
+      business.pickUp = res.pickUp || false;
+      business.atHome = res.atHome || false;
     }
 
     const userData = {
@@ -52,6 +54,8 @@ export const loginUser = async ({ username, password }) => {
       acceptTransfer: business.acceptTransfer || false,
       bankClabe: business.bankClabe || '',
       bankCard: business.bankCard || '',
+      pickUp: business.pickUp || false,
+      atHome: business.atHome || false,
       role: claims.role[0],
       createdAt: claims.date,
     };
@@ -108,7 +112,7 @@ export const logoutUser = async (navigation) => {
   }
 };
 
-export const resetPassword = async (username, newPassword) => {
+export const resetPassword = async (identifier, newPassword) => {
   try {
     const response = await fetch(API.AUTH.RESET_PASSWORD, {
       method: 'POST',
@@ -116,7 +120,7 @@ export const resetPassword = async (username, newPassword) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        username: username.trim(),
+        identifier: identifier.trim(),
         newPassword: newPassword,
       }),
     });

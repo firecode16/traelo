@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { resetPassword } from '../../services/AuthService';
 
 const RecoveryPasswordScreen = ({ navigation }) => {
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,8 +43,8 @@ const RecoveryPasswordScreen = ({ navigation }) => {
   };
 
   const handleResetPassword = async () => {
-    if (!username) {
-      showModal('Error', 'Por favor ingresa tu nombre de usuario');
+    if (!identifier) {
+      showModal('Error', 'Por favor ingresa tu email o usuario');
       return;
     }
 
@@ -65,7 +65,7 @@ const RecoveryPasswordScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      const result = await resetPassword(username, newPassword);
+      const result = await resetPassword(identifier, newPassword);
 
       if (result.success) {
         showModal('Éxito', result.message, () => navigation.navigate('Login'));
@@ -92,15 +92,15 @@ const RecoveryPasswordScreen = ({ navigation }) => {
 
         <View style={styles.formContainer}>
           <Text style={styles.instructions}>
-            Ingresa tu nombre de usuario y tu nueva contraseña
+            Ingresa tu Email o usuario y tu nueva contraseña
           </Text>
 
           <TextInput
             style={[styles.input, { color: '#000' }]}
-            placeholder="Nombre de usuario"
+            placeholder="Email o usuario"
             placeholderTextColor="#888"
-            value={username}
-            onChangeText={setUsername}
+            value={identifier}
+            onChangeText={setIdentifier}
             autoCapitalize="none"
             editable={!isLoading}
           />

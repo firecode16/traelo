@@ -44,7 +44,7 @@ const LoginScreen = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      const token = await loginUser({ username: email.trim(), password });
+      const token = await loginUser({ identifier: email.trim(), password });
       const userData = await getUserInfo(token);
       
       const role = userData.roles?.[0]?.replace('ROLE_', '') || 'CUSTOMER';
@@ -83,7 +83,7 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.subtitle}>Tu antojo, directo a tu casa</Text>
 
               <InputField
-                label={'Usuario'}
+                label={'Email o usuario'}
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
