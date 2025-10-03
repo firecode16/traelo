@@ -10,15 +10,16 @@ import {
   Platform,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { COLOR } from '../../constants/Color';
-import { API } from '../../constants/ApiConfig';
-import { getAllBusinesses } from '../../services/BusinessService';
-import SearchBar from '../../components/SearchBar';
-import ImageWithFallback from '../../components/ImageWithFallback';
-import { preloadImage } from '../../components/ImageCache';
-import useScrollHandler from '../../components/HandleScroll';
+import { COLOR } from '../../../constants/Color';
+import { API } from '../../../constants/ApiConfig';
+import { getAllBusinesses } from '../../../services/BusinessService';
+import SearchBar from '../../../components/SearchBar';
+import ImageWithFallback from '../../../components/ImageWithFallback';
+import { preloadImage } from '../../../components/ImageCache';
+import useScrollHandler from '../../../components/HandleScroll';
 
-const HomeScreen = ({ navigation }) => {
+const FoodAndDrinkScreen = ({ navigation, route }) => {
+  const { sector } = route.params || {};
   const [businesses, setBusinesses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -119,7 +120,7 @@ const HomeScreen = ({ navigation }) => {
       key={business.businessId}
       style={styles.businessCard}
       underlayColor="#e0e0e0"
-      onPress={() => navigation.navigate('BusinessDetail', { business })}
+      onPress={() => navigation.navigate('BusinessDetail', { business, sector })}
     >
       <View>
         <ImageWithFallback src={business.logoUrl} style={styles.logo} />
@@ -162,7 +163,7 @@ const HomeScreen = ({ navigation }) => {
   if (loading && businesses.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#00b894" />
+        <ActivityIndicator size="large" color={COLOR.green} />
         <Text>Cargando negocios...</Text>
       </View>
     );
@@ -185,9 +186,9 @@ const HomeScreen = ({ navigation }) => {
         keyExtractor={(item) => item.businessId.toString()}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        contentContainerStyle={{ paddingBottom: 45, flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: 170, flexGrow: 1 }}
         ListFooterComponent={
-          loading ? <ActivityIndicator size="small" color="#00b894" /> : null
+          loading ? <ActivityIndicator size="small" color={COLOR.green} /> : null
         }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -302,4 +303,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default FoodAndDrinkScreen;

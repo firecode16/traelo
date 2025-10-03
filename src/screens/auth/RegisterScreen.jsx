@@ -298,7 +298,7 @@ const RegisterScreen = ({ navigation }) => {
             {isLoading ? (
               <ActivityIndicator
                 size="large"
-                color={COLOR.orange}
+                color={COLOR.green}
                 style={{ marginTop: 20, marginBottom: 30 }}
               />
             ) : (
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   registerButton: {
-    backgroundColor: COLOR.orange,
+    backgroundColor: COLOR.green,
     padding: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -451,8 +451,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   checked: {
-    backgroundColor: COLOR.orange,
-    borderColor: COLOR.orange,
+    backgroundColor: COLOR.green,
+    borderColor: COLOR.green,
   },
   termsText: {
     flex: 1,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     color: COLOR.black,
   },
   link: {
-    color: COLOR.orange,
+    color: COLOR.green,
     textDecorationLine: 'underline',
     fontFamily: 'Poppins-SemiBold',
   },
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   modalButton: {
-    backgroundColor: COLOR.orange,
+    backgroundColor: COLOR.green,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,

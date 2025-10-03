@@ -1,5 +1,5 @@
 import React from 'react';
-import CustomerStack from '../stack/CustomerStack';
+import MallStack from '../stack/MallStack';
 import BusinessStack from '../stack/BusinessStack';
 import RiderStack from '../stack/RiderStack';
 import AdminStack from '../stack/AdminStack';
@@ -9,7 +9,7 @@ const RoleRouter = ({ route }) => {
 
   switch (role) {
     case 'CUSTOMER':
-      return <CustomerStack />;
+      return <MallStack />;
     case 'BUSINESS':
       return <BusinessStack />;
     case 'RIDER':

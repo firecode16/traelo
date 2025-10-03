@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppNavigation from './src/navigation/AppNavigation';
+import { CartProvider } from './src/contexts/CartContext';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -14,17 +15,17 @@ export default function App() {
     'Poppins-SemiBold': require('./src/assets/fonts/poppins/Poppins-SemiBold.ttf'),
   });
 
-  React.useEffect(() => {}, [fontsLoaded]);
-
   if (!fontsLoaded) {
     return null;
   }
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <AppNavigation />
-      </NavigationContainer>
+      <CartProvider>
+        <NavigationContainer>
+          <AppNavigation />
+        </NavigationContainer>
+      </CartProvider>
     </SafeAreaProvider>
   );
 }

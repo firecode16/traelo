@@ -16,20 +16,60 @@ import {
   Clipboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MapModal from '../../components/MapModal';
+import MapModal from '../../../components/MapModal';
 import * as Location from 'expo-location';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Entypo from '@expo/vector-icons/Entypo';
-import { COLOR } from '../../constants/Color';
-import { generateOrderMessage } from '../../data/OrderMessage';
-import { buildJsonOrder } from '../../util/OrderUtils';
-import { createOrder } from '../../services/OrdersService';
+import { COLOR } from '../../../constants/Color';
+import { generateOrderMessage } from '../../../orchestrator/OrderMessageOrchestrator';
+import { buildJsonOrder } from '../../../util/OrderUtils';
+import { createOrder } from '../../../services/OrdersService';
+import { useCart } from '../../../contexts/CartContext';
 
-const CartScreen = ({ route, navigation }) => {
-  const { cartItems = {}, business, onGoBack } = route.params;
+import FoodShoppingCart from '../food/FoodShoppingCart';
+import FashionShoppingCart from '../fashion/FashionShoppingCart';
+import TechnologyShoppingCart from '../technology/TechnologyShoppingCart';
+import HardwareShoppingCart from '../hardware/HardwareShoppingCart';
+import PharmacyShoppingCart from '../pharmacy/PharmacyShoppingCart';
+
+const sectorComponents = {
+  food: FoodShoppingCart,
+  fashion: FashionShoppingCart,
+  technology: TechnologyShoppingCart,
+  hardware: HardwareShoppingCart,
+  pharmacy: PharmacyShoppingCart,
+};
+
+const ShoppingCart = ({ route, navigation }) => {
+  const { businessId, sector, cartItems: initialCartItems, business: initialBusiness } = route.params;
+  const { cart, addToCart, clearCartForBusiness } = useCart();
+  
+  const SectorComponent = sectorComponents[sector];
+  if (!SectorComponent) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 16, color: COLOR.gray }}>Sector no soportado</Text>
+      </View>
+    );
+  }
+
+  // Usar el negocio de los parámetros si está disponible, si no del contexto
+  const business = initialBusiness || cart[businessId]?.business || {};
+  const cartItems = cart[businessId]?.items || {};
+
   const [profile, setProfile] = useState(null);
   const [customerNotes, setCustomerNotes] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState(null);
+
+  // Sincronizar items iniciales con el contexto
+  useEffect(() => {
+    if (initialCartItems && Object.keys(initialCartItems).length > 0) {
+      Object.entries(initialCartItems).forEach(([menuId, quantity]) => {
+        addToCart(businessId, menuId, quantity, business);
+      });
+    }
+  }, []);
+
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [showPaymentWarning, setShowPaymentWarning] = useState(false);
@@ -56,15 +96,15 @@ const CartScreen = ({ route, navigation }) => {
     }
   }, [business]);
 
-  const [cartState, setCartState] = useState(() => {
-    if (!business?.menus || !cartItems) return [];
-    return business.menus
-      .filter((menu) => cartItems[menu.menuId])
-      .map((menu) => ({
-        ...menu,
-        quantity: cartItems[menu.menuId],
-      }));
-  });
+  // construir cartState desde cartItems
+  const cartState = business.menus
+    ? business.menus
+        .filter((menu) => cartItems[menu.menuId])
+        .map((menu) => ({
+          ...menu,
+          quantity: cartItems[menu.menuId],
+        }))
+    : [];
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -83,22 +123,10 @@ const CartScreen = ({ route, navigation }) => {
     loadProfile();
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (onGoBack) {
-        const updatedCart = {};
-        cartState.forEach((item) => {
-          if (item.quantity > 0) {
-            updatedCart[item.menuId] = item.quantity;
-          }
-        });
-        onGoBack(updatedCart);
-      }
-    };
-  }, [cartState]);
-
   const totalCantidad = cartState.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrecio = cartState.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalPrecio = cartState.reduce(
+    (sum, item) => sum + item.price * item.quantity, 0,
+  );
 
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
@@ -117,7 +145,6 @@ const CartScreen = ({ route, navigation }) => {
     setIsLoadingLocation(true);
     try {
       let baseCoords = deliveryLocation;
-
       if (!baseCoords) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -151,34 +178,32 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const confirmRemove = () => {
-    const updatedCart = cartState.filter(
-      (item) => item.menuId !== selectedProductId,
-    );
-    setCartState(updatedCart);
+    addToCart(businessId, selectedProductId, 0, business);
     setShowRemoveModal(false);
   };
 
   const copyToClipboardWithFeedback = (text, type) => {
     Clipboard.setString(text);
-
     let feedbackText = '';
-    if (type === 'clabe') {
-      feedbackText = 'CLABE copiada';
-    } else if (type === 'card') {
-      feedbackText = 'Tarjeta copiada';
-    }
-
+    if (type === 'clabe') feedbackText = 'CLABE copiada';
+    else if (type === 'card') feedbackText = 'Tarjeta copiada';
     setCopiedText(feedbackText);
     setShowCopiedFeedback(true);
-
-    setTimeout(() => {
-      setShowCopiedFeedback(false);
-    }, 1000);
+    setTimeout(() => setShowCopiedFeedback(false), 1000);
   };
 
   const confirmOrder = async () => {
-    // Validate that a payment method has been selected
     if (!paymentMethod) {
+      setShowPaymentWarning(true);
+      return;
+    }
+
+    if (!deliveryLocation) {
+      setShowLocationWarning(true);
+      return;
+    }
+
+    if (paymentMethod === 'cash' && (!paymentAmount || parseFloat(paymentAmount) < totalPrecio)) {
       setShowPaymentWarning(true);
       return;
     }
@@ -190,75 +215,82 @@ const CartScreen = ({ route, navigation }) => {
         customerId: profile?.userId,
         address: `https://maps.google.com?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`,
         notes: customerNotes,
-        deliveryMethod: deliveryMethod,
-        paymentMethod: paymentMethod,
+        deliveryMethod,
+        paymentMethod,
+        sector,
         jsonOrder: buildJsonOrder(cartState),
         totalPrice: totalPrecio.toFixed(2),
         createdAt: new Date().toISOString(),
       };
 
       await createOrder(orderPayload);
-      console.info('Pedido enviado exitosamente:', orderPayload.orderId);
+      console.info('✅ Pedido enviado exitosamente:', orderPayload.orderId);
+
+      clearCartForBusiness(business.businessId);
       setShowConfirmModal(false);
-      sendOrderToWhatsApp();
+      await sendOrderToWhatsApp();
       navigation.popToTop();
     } catch (error) {
-      console.error('Error al enviar el pedido:', error);
-      alert('Error al enviar el pedido.');
+      console.error('❌ Error al enviar el pedido:', error);
+      Alert.alert('Error', 'Error al enviar el pedido. Por favor, intenta nuevamente.', [{ text: 'OK' }],);
     }
   };
 
-  const sendOrderToWhatsApp = () => {
-    console.log('Enviando pedido a WhatsApp...', business.phone);
-    const businessPhone = business.phone || '000000000';
-    const locationUrl = `https://www.google.com/maps?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`;
-    const deliveryTime = '25 a 35 minutos';
+  const sendOrderToWhatsApp = async () => {
+    try {
+      if (!deliveryLocation) {
+        throw new Error('Ubicación no disponible');
+      }
 
-    const message = generateOrderMessage(
-      business.fullName,
-      profile?.fullName || 'Cliente',
-      cartState,
-      locationUrl,
-      customerNotes,
-      deliveryMethod,
-      paymentMethod === 'cash' ? paymentAmount : '',
-      paymentMethod,
-      deliveryReference,
-      deliveryTime,
-    );
+      const businessPhone = business.phone || '000000000';
+      const locationUrl = `https://www.google.com/maps?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`;
+      const deliveryTime = '25 a 35 minutos';
 
-    const url = `https://wa.me/${businessPhone}?text=${message}`;
+      const orderData = {
+        businessName: business.fullName,
+        customerName: profile?.fullName || 'Cliente',
+        cartState,
+        location: locationUrl,
+        customerNotes,
+        deliveryMethod,
+        paymentAmount: paymentMethod === 'cash' ? paymentAmount : '',
+        paymentMethod,
+        deliveryReference,
+        deliveryTime,
+      };
 
-    Linking.openURL(url).catch((err) =>
-      console.error('Error al abrir WhatsApp', err),
-    );
+      const message = generateOrderMessage(sector, orderData);
+      const url = `https://wa.me/${businessPhone}?text=${message}`;
+
+      await Linking.openURL(url);
+    } catch (err) {
+      console.error('Error al abrir WhatsApp:', err);
+      Alert.alert('Error', 'No se pudo abrir WhatsApp. Por favor, intenta nuevamente.', [{ text: 'OK' }],);
+    }
   };
 
   const handlePaymentAmountChange = (text) => {
     const regex = /^\d{0,4}$/;
-    if (regex.test(text)) {
-      setPaymentAmount(text);
-    }
+    if (regex.test(text)) setPaymentAmount(text);
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.itemRow}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemDetails}>
-          {item.quantity} × ${item.price.toFixed(2)} = $
-          {(item.price * item.quantity).toFixed(2)}
-        </Text>
-      </View>
-      <TouchableHighlight
-        underlayColor="#ccc"
-        onPress={() => openRemoveModal(item.menuId)}
-        style={styles.removeButton}
-      >
-        <Text style={styles.removeButtonText}>Eliminar</Text>
-      </TouchableHighlight>
-    </View>
-  );
+  const renderItem = ({ item }) => {
+    const SectorComponent = sectorComponents[sector];
+    return (
+      <SectorComponent 
+        item={item} 
+        actions={
+          <TouchableHighlight
+            underlayColor="#ccc"
+            onPress={() => openRemoveModal(item.menuId)}
+            style={styles.removeButton}
+          >
+            <Text style={styles.removeButtonText}>Eliminar</Text>
+          </TouchableHighlight>
+        }
+      />
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -268,11 +300,7 @@ const CartScreen = ({ route, navigation }) => {
       <View style={styles.container}>
         {cartState.length === 0 ? (
           <View
-            style={{
-              flex: 1,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
           >
             <Text style={{ fontSize: 18, color: COLOR.gray }}>
               Tu carrito está vacío
@@ -312,9 +340,7 @@ const CartScreen = ({ route, navigation }) => {
                       <Entypo
                         name="location"
                         size={22}
-                        color={
-                          deliveryLocation ? COLOR.orange : COLOR.lightGray
-                        }
+                        color={deliveryLocation ? COLOR.orange : COLOR.black}
                         style={{ right: 10 }}
                       />
                       <Text style={styles.locationButtonText}>
@@ -357,8 +383,16 @@ const CartScreen = ({ route, navigation }) => {
                     </Text>
                     <View style={styles.deliveryMethodContainer}>
                       {[
-                        { label: 'A domicilio', value: deliveryMethods.atHome, icon: 'home-outline' },
-                        { label: 'Para recoger', value: deliveryMethods.pickUp, icon: 'walk-outline' },
+                        {
+                          label: 'A domicilio',
+                          value: deliveryMethods.atHome,
+                          icon: 'home-outline',
+                        },
+                        {
+                          label: 'Para recoger',
+                          value: deliveryMethods.pickUp,
+                          icon: 'walk-outline',
+                        },
                       ]
                         .filter((method) => method.value)
                         .map((method) => (
@@ -366,14 +400,15 @@ const CartScreen = ({ route, navigation }) => {
                             key={method.label}
                             onPress={() => setDeliveryMethod(method.label)}
                             style={[
-                              styles.deliveryOption,
-                              deliveryMethod === method.label && styles.selectedOption,
+                              styles.deliveryOption, deliveryMethod === method.label && styles.selectedOption,
                             ]}
                           >
                             <Ionicons
                               name={method.icon}
                               size={18}
-                              color={deliveryMethod === method.label ? '#fff' : '#333'}
+                              color={
+                                deliveryMethod === method.label ? '#fff' : '#333'
+                              }
                               style={{ marginRight: 6 }}
                             />
                             <Text
@@ -417,9 +452,7 @@ const CartScreen = ({ route, navigation }) => {
                         <TouchableOpacity
                           onPress={() => setPaymentMethod('cash')}
                           style={[
-                            styles.paymentOption,
-                            paymentMethod === 'cash' &&
-                            styles.selectedPaymentOption,
+                            styles.paymentOption, paymentMethod === 'cash' && styles.selectedPaymentOption,
                           ]}
                         >
                           <Ionicons
@@ -443,9 +476,7 @@ const CartScreen = ({ route, navigation }) => {
                         <TouchableOpacity
                           onPress={() => setPaymentMethod('transfer')}
                           style={[
-                            styles.paymentOption,
-                            paymentMethod === 'transfer' &&
-                            styles.selectedPaymentOption,
+                            styles.paymentOption, paymentMethod === 'transfer' && styles.selectedPaymentOption,
                           ]}
                         >
                           <Ionicons
@@ -498,7 +529,7 @@ const CartScreen = ({ route, navigation }) => {
                               />
                               <TouchableOpacity
                                 onPress={() =>
-                                  copyToClipboardWithFeedback(paymentMethods.bankCard, 'card')
+                                  copyToClipboardWithFeedback(paymentMethods.bankCard, 'card',)
                                 }
                               >
                                 <Ionicons
@@ -521,7 +552,7 @@ const CartScreen = ({ route, navigation }) => {
                             />
                             <TouchableOpacity
                               onPress={() =>
-                                copyToClipboardWithFeedback(paymentMethods.bankClabe, 'clabe')
+                                copyToClipboardWithFeedback(paymentMethods.bankClabe, 'clabe',)
                               }
                             >
                               <Ionicons
@@ -542,9 +573,7 @@ const CartScreen = ({ route, navigation }) => {
 
                   <TouchableOpacity
                     style={[
-                      styles.confirmButton,
-                      (!paymentMethod || (paymentMethod === 'cash' && !paymentAmount)) &&
-                      styles.confirmButtonDisabled,
+                      styles.confirmButton, (!paymentMethod || (paymentMethod === 'cash' && !paymentAmount)) && styles.confirmButtonDisabled,
                     ]}
                     onPress={() => {
                       if (!deliveryLocation) {
@@ -719,7 +748,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: 14,
     color: COLOR.orange,
+    marginTop: 4,
   },
+  
   removeButton: {
     backgroundColor: '#E63946',
     paddingHorizontal: 10,
@@ -1017,4 +1048,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CartScreen;
+export default ShoppingCart;

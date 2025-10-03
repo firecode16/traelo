@@ -43,7 +43,7 @@ const SessionLoaderScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={COLOR.orange} />
+      <ActivityIndicator size="large" color={COLOR.green} />
     </View>
   );
 };

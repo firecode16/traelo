@@ -108,7 +108,7 @@ const ProfileScreen = () => {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>👤 Perfil del usuario</Text>
+          <Text style={styles.title}>👤</Text>
 
           <View style={styles.field}>
             <Text style={styles.label}>Nombre del usuario</Text>
@@ -195,12 +195,12 @@ const ProfileScreen = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: 25,
     backgroundColor: '#fff',
     flexGrow: 1,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#f97316',
     marginBottom: 30,

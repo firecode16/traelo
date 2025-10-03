@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Traelo",
+    "name": "Traelo App",
     "slug": "traelo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,8 +9,8 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash_traelo.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#ff6b00"
+      "resizeMode": "contain",
+      "backgroundColor": "#00CC86"
     },
     "ios": {
       "supportsTablet": true,
@@ -24,7 +24,7 @@
       "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
-        "backgroundColor": "#ff6b00"
+        "backgroundColor": "#00CC86"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -41,8 +41,7 @@
         "googleMaps": {
           "apiKey": "AIzaSyC9j2y_FhfBmmBOqMNF5oJ6EHrD5myc0wE"
         }
-      },
-      "usesCleartextTraffic": true
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

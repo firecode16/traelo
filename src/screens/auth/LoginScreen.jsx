@@ -80,7 +80,7 @@ const LoginScreen = ({ navigation }) => {
                 <Image source={LogoTraelo} style={styles.logo} />
               </View>
 
-              <Text style={styles.subtitle}>Tu antojo, directo a tu casa</Text>
+              <Text style={styles.subtitle}>Centro comercial</Text>
 
               <InputField
                 label={'Email o usuario'}
@@ -122,7 +122,7 @@ const LoginScreen = ({ navigation }) => {
               {isLoading ? (
                 <ActivityIndicator
                   size="large"
-                  color={COLOR.orange}
+                  color={COLOR.green}
                   style={{ marginVertical: 20 }}
                 />
               ) : (
@@ -186,6 +186,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 200,
     height: 200,
+    top: 20,
     resizeMode: 'contain',
   },
   subtitle: {

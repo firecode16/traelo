@@ -1,12 +1,13 @@
 import { Text, TouchableHighlight } from 'react-native';
+import { COLOR } from '../constants/Color';
 
 export default function CustomButton({ label, onPress }) {
   return (
     <TouchableHighlight
       onPress={onPress}
-      underlayColor={'#F44336'}
+      underlayColor={'#00df73da'}
       style={{
-        backgroundColor: '#FF5722',
+        backgroundColor: COLOR.green,
         padding: 20,
         borderRadius: 10,
         marginBottom: 30,

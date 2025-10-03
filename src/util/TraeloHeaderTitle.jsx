@@ -18,8 +18,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logo: {
-    width: 120,
-    height: 120,
+    width: 115,
+    height: 115,
   },
   title: {
     fontFamily: 'Poppins-SemiBold',

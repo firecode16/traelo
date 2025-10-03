@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { COLOR } from '../../constants/Color';
 import { resetPassword } from '../../services/AuthService';
 
 const RecoveryPasswordScreen = ({ navigation }) => {
@@ -86,7 +87,7 @@ const RecoveryPasswordScreen = ({ navigation }) => {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
-          <Ionicons name="lock-closed" size={50} color="#4CAF50" />
+          <Ionicons name="lock-closed" size={50} color={COLOR.green} />
           <Text style={styles.title}>Recuperar Contraseña</Text>
         </View>
 
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   button: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLOR.green,
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontFamily: 'Roboto-Medium',
-    color: '#4CAF50',
+    color: COLOR.green,
     fontSize: 16,
   },
   modalOverlay: {
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   modalButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLOR.green,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
