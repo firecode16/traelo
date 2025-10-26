@@ -53,6 +53,12 @@
           "photosPermission": "Permiso requerido para acceder a la galería de fotos."
         }
       ],
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsAccessToken": "pk.eyJ1IjoiYnJhaW4xNiIsImEiOiJjbWdrMXk2ajUwcW9rMmtwcnNvMWdxcnBwIn0.Fj4niAUzl-JUOGV57Av_7w"
+        }
+      ],
       "expo-font"
     ],
     "extra": {

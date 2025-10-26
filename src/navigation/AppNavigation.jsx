@@ -7,6 +7,8 @@ import RecoveryPasswordScreen from '../screens/auth/RecoveryPasswordScreen';
 import TermsScreen from '../screens/policy/TermsScreen';
 import PrivacyScreen from '../screens/policy/PrivacyScreen';
 import RoleRouter from './routes/RoleRouter';
+import CoverageScreen from '../screens/steps/CoverageScreen';
+import CommissionScreen from '../screens/steps/CommissionScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -59,6 +61,22 @@ const AppNavigation = () => {
         name="RoleRouter"
         component={RoleRouter}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Coverage"
+        component={CoverageScreen}
+        options={{
+          headerTitle: 'Cobertura del servicio',
+          headerTitleStyle: { fontFamily: 'Poppins-SemiBold', fontSize: 20 },
+        }}
+      />
+      <Stack.Screen
+        name="Commission"
+        component={CommissionScreen}
+        options={{
+          headerTitle: 'Comisiones del servicio',
+          headerTitleStyle: { fontFamily: 'Poppins-SemiBold', fontSize: 20 },
+        }}
       />
     </Stack.Navigator>
   );
