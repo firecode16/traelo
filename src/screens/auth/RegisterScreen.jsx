@@ -137,13 +137,10 @@ const RegisterScreen = ({ navigation }) => {
           userId: Date.now(),
           roles: [form.role],
           fullName: form.fullName,
-          description: form.role === 'ROLE_BUSINESS' ? form.description : null,
-          sector: form.role === 'ROLE_BUSINESS' ? form.sector : null,
           username: form.username,
           email: form.email,
           phone: form.phone,
           password: form.password,
-          address: form.role === 'ROLE_BUSINESS' ? form.address : null,
           createdAt: new Date().toISOString(),
         };
 

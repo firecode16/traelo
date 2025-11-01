@@ -1,16 +1,14 @@
 import { API } from '../constants/ApiConfig';
 import { decodeJWT } from '../util/JwtUtils';
-import { registerBusiness } from './BusinessService';
 
-export const registerUser = async (userData) => {
+export const registerUser = async (userPayload) => {
   try {
-    console.log('userData enviado:', userData);
     const response = await fetch(API.AUTH.SIGNUP, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData),
+      body: JSON.stringify(userPayload),
     });
 
     if (!response.ok) {
@@ -21,11 +19,9 @@ export const registerUser = async (userData) => {
     const result = await response.json();
     const claims = decodeJWT(result.token);
 
-    if (userData.roles.includes('ROLE_BUSINESS')) {
-      await registerBusiness(claims, userData);
-    }
-    return result;
+    return { ...result, claims };
   } catch (err) {
+    console.error('registerUser error:', err);
     throw err;
   }
 };

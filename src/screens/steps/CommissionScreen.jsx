@@ -11,9 +11,15 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { COLOR } from '../../constants/Color';
+import { registerUser } from '../../services/RegisterService';
+import { registerBusiness } from '../../services/BusinessService';
+import { registerSector } from '../../services/SectorService';
+import { registerDeliveryZone } from '../../services/DeliveryZoneService';
+import { registerZoneCommissionsBatch } from '../../services/ZoneCommissionService';
 
 export default function CommissionScreen({ navigation, route }) {
   const { form, locationData, deliveryOptions } = route.params || {};
@@ -59,11 +65,21 @@ export default function CommissionScreen({ navigation, route }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
+  const [loading, setLoading] = useState(false); // Estado para el loading
+  const [modalCallback, setModalCallback] = useState(null); // Callback para el modal
 
-  const showModalFn = (title, message) => {
+  const showModalFn = (title, message, callback = null) => {
     setModalTitle(title);
     setModalMessage(message);
+    setModalCallback(() => callback); // Guardar el callback
     setModalVisible(true);
+  };
+
+  const handleModalClose = () => {
+    setModalVisible(false);
+    if (modalCallback) {
+      modalCallback();
+    }
   };
 
   // Selección binaria
@@ -72,7 +88,8 @@ export default function CommissionScreen({ navigation, route }) {
       list.map((item) =>
         item.id === id
           ? {
-              ...item, selectedOption: option,
+              ...item,
+              selectedOption: option,
               ...(option === 'free' && { commissionAmount: '' }),
             }
           : item,
@@ -107,51 +124,153 @@ export default function CommissionScreen({ navigation, route }) {
     );
 
     if (invalidCommissions.length > 0) {
-      showModalFn('Comisiones incompletas', 'Algunas zonas/puntos tienen comisión seleccionada pero no tienen monto asignado. Por favor, completa la información.',);
+      showModalFn('Comisiones incompletas', 'Algunas zonas o puntos tienen comisión seleccionada pero no tienen monto asignado. Por favor, completa la información.',);
       return;
     }
 
-    // Preparar payload
-    const cleanCommissions = allCommissions.map((item) => ({
-      ...item, address: item.address || '',
-      commissionAmount: item.selectedOption === 'free' ? '' : item.commissionAmount,
-      coordinates: item.coordinates || null,
-    }));
+    setLoading(true);
 
-    const cleanDeliveryOptions = {
-      ...deliveryOptions,
-      zones: transformCoordinates(deliveryOptions?.zones).map((zone) => ({
-        ...zone, address: zone.address || zone.place_name || '',
-      })),
-      points: transformCoordinates(deliveryOptions?.points).map((point) => ({
-        ...point, address: point.address || point.place_name || '',
-      })),
-    };
+    try {
+      // 1. Registrar User
+      const userPayload = {
+        userId: Date.now(),
+        roles: [form.role],
+        fullName: form.fullName,
+        username: form.username,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        createdAt: new Date().toISOString(),
+      };
 
-    const payload = {
-      form: {
-        ...form,
-        address: form?.address || '',
-        description: form?.description || '',
-        sector: form?.sector || '',
-      },
-      locationData: {
-        ...locationData,
-        display_name: locationData?.display_name || '',
-        coordinates:
-          locationData?.lat && locationData?.lng
-            ? {
-                latitude: locationData.lat,
-                longitude: locationData.lng,
-              }
-            : null,
-      },
-      deliveryOptions: cleanDeliveryOptions,
-      commissions: cleanCommissions,
-    };
+      const { claims } = await registerUser(userPayload);
+      console.log('✅ User registrado:', claims);
 
-    console.log('Datos listos para enviar:', JSON.stringify(payload, null, 2));
-    showModalFn('Éxito', 'Registro preparado correctamente.');
+      // 2. Registrar Sector
+      const sectorPayload = {
+        sectorId: Date.now(),
+        name: form?.sector || '',
+        displayNameProductTab: form?.sector === 'food' ? 'Menú' : 'Catálogo',
+        iconName: form?.sector || 'default',
+        isActive: true,
+      };
+
+      const savedSector = await registerSector(sectorPayload);
+      console.log('✅ Sector registrado:', savedSector);
+
+      // 3. Registrar Business
+      const businessPayload = {
+        businessId: Date.now(),
+        userId: claims.userId,
+        fullName: claims.fullName,
+        description: form.description || '',
+        address: locationData?.display_name || form.address || '',
+        latitude: locationData?.lat || null,
+        longitude: locationData?.lng || null,
+        backdrop: form.backdrop || null,
+        isActive: true,
+        acceptCash: form.acceptCash || true,
+        acceptTransfer: form.acceptTransfer || false,
+        bankClabe: form.bankClabe || '',
+        bankCard: form.bankCard || '',
+        sector: savedSector,
+        createdAt: new Date().toISOString(),
+      };
+
+      const businessResult = await registerBusiness(businessPayload);
+      console.log('✅ Business registrado:', businessResult);
+      const businessId = businessResult.businessId || businessPayload.businessId;
+
+      // 4. Registrar DeliveryZone (una sola entidad con todas las zones y points)
+      const deliveryZonePayload = {
+        deliveryZoneId: Date.now(),
+        zoneName: `${businessPayload.fullName} - Zonas de Entrega`,
+        pickupEnabled: deliveryOptions?.pickupEnabled || false,
+        homeDeliveryEnabled: deliveryOptions?.homeDeliveryEnabled || false,
+        deliveryCentersEnabled: deliveryOptions?.deliveryCentersEnabled || false,
+        zones: (deliveryOptions?.zones || []).map((zone) => {
+          let centerObj;
+          if (Array.isArray(zone.center)) {
+            centerObj = {
+              longitude: zone.center[0],
+              latitude: zone.center[1],
+            };
+          } else if (zone.center && typeof zone.center === 'object') {
+            centerObj = {
+              longitude: zone.center.longitude || zone.center.lng || 0,
+              latitude: zone.center.latitude || zone.center.lat || 0,
+            };
+          } else {
+            centerObj = { longitude: 0, latitude: 0 };
+          }
+
+          return {
+            id: zone.id,
+            name: zone.name,
+            place_name: zone.place_name,
+            center: centerObj,
+            address: zone.address || zone.place_name || '',
+            geometry: zone.geometry || null,
+          };
+        }),
+        points: (deliveryOptions?.points || []).map((point) => {
+          let centerObj;
+          if (Array.isArray(point.center)) {
+            centerObj = {
+              longitude: point.center[0],
+              latitude: point.center[1],
+            };
+          } else if (point.center && typeof point.center === 'object') {
+            centerObj = {
+              longitude: point.center.longitude || point.center.lng || 0,
+              latitude: point.center.latitude || point.center.lat || 0,
+            };
+          } else {
+            centerObj = { longitude: 0, latitude: 0 };
+          }
+
+          return {
+            id: point.id,
+            name: point.name,
+            place_name: point.place_name,
+            center: centerObj,
+            address: point.address || point.place_name || '',
+            geometry: point.geometry || null,
+          };
+        }),
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        businessId: businessId,
+      };
+
+      const savedZone = await registerDeliveryZone(deliveryZonePayload);
+      console.log('✅ DeliveryZone registrado:', savedZone);
+
+      // 5. Registrar ZoneCommissions en un solo array
+      const zoneCommissionsPayload = allCommissions.map((commission) => ({
+        zoneCommissionId: commission.id,
+        shippingType: commission.type === 'delivery' ? 'DELIVERY' : 'PICKUP',
+        selectedOption: commission.selectedOption,
+        commissionAmount: commission.commissionAmount || null,
+        address: commission.address || commission.name || '',
+        coordinates: JSON.stringify(commission.coordinates || {}),
+        deliveryZoneId: savedZone.deliveryZoneId,
+        businessId: businessId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }));
+
+      await registerZoneCommissionsBatch(zoneCommissionsPayload);
+
+      console.log('✅ ZoneCommissions registrados en batch');
+      setLoading(false);
+      showModalFn('Éxito', 'Registro completado correctamente', () => navigation.navigate('Login'),);
+    } catch (error) {
+      console.error('handleRegister error:', error);
+      setLoading(false);
+      showModalFn('Error', error.message || 'Ocurrió un error en el registro.');
+    }
   };
 
   return (
@@ -199,7 +318,7 @@ export default function CommissionScreen({ navigation, route }) {
                           style={[
                             styles.binaryOption, zone.selectedOption === 'free' && styles.binaryOptionSelected,
                           ]}
-                          onPress={() => handleOptionSelect(zone.id, 'delivery', 'free') }
+                          onPress={() => handleOptionSelect(zone.id, 'delivery', 'free')}
                         >
                           <Feather
                             name="truck"
@@ -221,7 +340,7 @@ export default function CommissionScreen({ navigation, route }) {
                           style={[
                             styles.binaryOption, zone.selectedOption === 'commission' && styles.binaryOptionSelected,
                           ]}
-                          onPress={() => handleOptionSelect(zone.id, 'delivery', 'commission',) }
+                          onPress={() => handleOptionSelect(zone.id, 'delivery', 'commission',)}
                         >
                           <Feather
                             name="dollar-sign"
@@ -250,7 +369,7 @@ export default function CommissionScreen({ navigation, route }) {
                             placeholder="Ej: 50.00"
                             keyboardType="numeric"
                             value={zone.commissionAmount}
-                            onChangeText={(v) => handleCommissionChange(zone.id, 'delivery', v) }
+                            onChangeText={(v) => handleCommissionChange(zone.id, 'delivery', v)}
                             returnKeyType="done"
                           />
                         </View>
@@ -281,7 +400,7 @@ export default function CommissionScreen({ navigation, route }) {
                           style={[
                             styles.binaryOption, point.selectedOption === 'free' && styles.binaryOptionSelected,
                           ]}
-                          onPress={() => handleOptionSelect(point.id, 'pickup', 'free') }
+                          onPress={() => handleOptionSelect(point.id, 'pickup', 'free')}
                         >
                           <Feather
                             name="truck"
@@ -303,7 +422,7 @@ export default function CommissionScreen({ navigation, route }) {
                           style={[
                             styles.binaryOption, point.selectedOption === 'commission' && styles.binaryOptionSelected,
                           ]}
-                          onPress={() => handleOptionSelect(point.id, 'pickup', 'commission') }
+                          onPress={() => handleOptionSelect(point.id, 'pickup', 'commission')}
                         >
                           <Feather
                             name="dollar-sign"
@@ -332,7 +451,7 @@ export default function CommissionScreen({ navigation, route }) {
                             placeholder="Ej: 30.00"
                             keyboardType="numeric"
                             value={point.commissionAmount}
-                            onChangeText={(v) => handleCommissionChange(point.id, 'pickup', v) }
+                            onChangeText={(v) => handleCommissionChange(point.id, 'pickup', v)}
                             returnKeyType="done"
                           />
                         </View>
@@ -343,8 +462,10 @@ export default function CommissionScreen({ navigation, route }) {
               )}
 
             {/* Estado vacío */}
-            {(!deliveryOptions?.homeDeliveryEnabled || zonesCommissions.length === 0) &&
-              (!deliveryOptions?.deliveryCentersEnabled || pointsCommissions.length === 0) && (
+            {(!deliveryOptions?.homeDeliveryEnabled ||
+              zonesCommissions.length === 0) &&
+              (!deliveryOptions?.deliveryCentersEnabled ||
+                pointsCommissions.length === 0) && (
                 <View style={styles.emptyState}>
                   <Feather name="settings" size={48} color="#D1D5DB" />
                   <Text style={styles.emptyStateTitle}>
@@ -363,7 +484,9 @@ export default function CommissionScreen({ navigation, route }) {
                 onPress={() => setAcceptedTerms(!acceptedTerms)}
                 style={styles.checkboxContainer}
               >
-                <View style={[styles.checkbox, acceptedTerms && styles.checked]}>
+                <View
+                  style={[styles.checkbox, acceptedTerms && styles.checked]}
+                >
                   {acceptedTerms && (
                     <Ionicons name="checkmark" size={18} color="white" />
                   )}
@@ -401,12 +524,16 @@ export default function CommissionScreen({ navigation, route }) {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[
-            styles.registerButton, !acceptedTerms && styles.registerButtonDisabled,
+            styles.registerButton, (!acceptedTerms || loading) && styles.registerButtonDisabled,
           ]}
-          disabled={!acceptedTerms}
+          disabled={!acceptedTerms || loading}
           onPress={handleRegister}
         >
-          <Text style={styles.registerButtonText}>Completar Registro</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.registerButtonText}>Completar Registro</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -417,7 +544,7 @@ export default function CommissionScreen({ navigation, route }) {
             <Text style={styles.modalMessage}>{modalMessage}</Text>
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => setModalVisible(false)}
+              onPress={handleModalClose}
             >
               <Text style={styles.modalButtonText}>Aceptar</Text>
             </TouchableOpacity>
@@ -646,6 +773,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
   },
 
   registerButtonDisabled: {

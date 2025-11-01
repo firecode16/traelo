@@ -1,24 +1,13 @@
 import { API } from '../constants/ApiConfig';
 
-export const registerBusiness = async (claims, userData) => {
+export const registerBusiness = async (businessPayload) => {
   try {
     const response = await fetch(API.BUSINESS.CREATE, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        businessId: Date.now(), // Generar un ID único para el negocio
-        userId: claims.userId,
-        username: claims.username,
-        fullName: claims.fullName, // --> Use fullName as business name
-        description: userData.description,
-        email: claims.email,
-        phone: claims.phone,
-        address: userData.address,
-        createdAt: userData.createdAt,
-        isActive: true,
-      }),
+      body: JSON.stringify(businessPayload),
     });
 
     if (!response.ok) {

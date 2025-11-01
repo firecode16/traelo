@@ -34,4 +34,17 @@ export const API = {
   ORDERS: {
     CREATE: `${BASE_URL}/orders/createWithItems`,
   },
+  SECTORS: {
+    CREATE: `${BASE_URL}/sectors/create`,
+    GET_BY_SECTOR: (sectorId) => `${BASE_URL}/sectors/getSectorById/${sectorId}`,
+  },
+  ZONES: {
+    CREATE: `${BASE_URL}/zones-coverage/create`,
+    GET_BY_BUSINESS: (businessId) => `${BASE_URL}/zones-coverage/getDeliveryZonesByBusiness/${businessId}`,
+  },
+  COMMISSIONS: {
+    CREATE_BATCH: `${BASE_URL}/zone-commissions/batch`,
+    CREATE: `${BASE_URL}/zone-commissions/create`,
+    GET_BY_BUSINESS: (businessId) => `${BASE_URL}/zone-commissions/getZoneCommissionByBusiness/${businessId}`,
+  },
 };
