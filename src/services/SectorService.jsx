@@ -30,3 +30,18 @@ export const getSectorBySectorId = async (sectorId) => {
     throw error;
   }
 };
+
+export const getSectorByBusinessId = async (businessId) => {
+  try {
+    const response = await axios.get(API.SECTORS.GET_BY_BUSINESS(businessId), {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error fetching sector by business:', error);
+    throw error;
+  }
+};

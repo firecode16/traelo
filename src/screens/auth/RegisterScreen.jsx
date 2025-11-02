@@ -348,7 +348,7 @@ const RegisterScreen = ({ navigation }) => {
                       color="#9e9e9eff"
                     />
                     <Picker.Item label="Alimentos y Bebidas" value="food" />
-                    <Picker.Item label="Tecnología" value="technology" />
+                    <Picker.Item label="Electrónica y Tecnología" value="technology" />
                     <Picker.Item label="Moda y Calzado" value="fashion" />
                     <Picker.Item label="Ferreteria" value="hardware" />
                     <Picker.Item label="Farmacia" value="pharmacy" />

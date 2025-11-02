@@ -241,7 +241,7 @@ export default function CommissionScreen({ navigation, route }) {
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        businessId: businessId,
+        businessAuxId: businessId,
       };
 
       const savedZone = await registerDeliveryZone(deliveryZonePayload);
@@ -256,7 +256,7 @@ export default function CommissionScreen({ navigation, route }) {
         address: commission.address || commission.name || '',
         coordinates: JSON.stringify(commission.coordinates || {}),
         deliveryZoneId: savedZone.deliveryZoneId,
-        businessId: businessId,
+        businessAuxId: businessId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));

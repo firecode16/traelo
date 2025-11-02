@@ -17,7 +17,8 @@ export const API = {
     UPDATE_BUSINESS_BY_USER: (userId) => `${BASE_URL}/business/updateBusiness/${userId}`,
     UPDATE_LOGO_BUSINESS_BY_ID: (businessId) => `${BASE_URL}/business/updateLogo/${businessId}`,
     GET_BUSINESS_LOGO_BY_ID: (businessId) => `${BASE_URL}/business/getLogo/${businessId}`,
-    GET_ALL: `${BASE_URL}/business/getAll`
+    GET_ALL: `${BASE_URL}/business/getAll`,
+    GET_DASHBOARD: (businessId) => `${BASE_URL}/business/${businessId}/dashboard`,
   },
   MENU: {
     CREATE: `${BASE_URL}/menu/create`,
@@ -37,6 +38,7 @@ export const API = {
   SECTORS: {
     CREATE: `${BASE_URL}/sectors/create`,
     GET_BY_SECTOR: (sectorId) => `${BASE_URL}/sectors/getSectorById/${sectorId}`,
+    GET_BY_BUSINESS: (businessId) => `${BASE_URL}/sectors/getSectorByBusinessId/${businessId}`,
   },
   ZONES: {
     CREATE: `${BASE_URL}/zones-coverage/create`,

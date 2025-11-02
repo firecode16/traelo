@@ -41,15 +41,12 @@ export const getBusinessByUserId = async (userId) => {
 
 export const getAllBusinesses = async (page = 0, size = 10) => {
   try {
-    const response = await fetch(
-      `${API.BUSINESS.GET_ALL}?page=${page}&size=${size}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+    const response = await fetch(`${API.BUSINESS.GET_ALL}?page=${page}&size=${size}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    );
+    });
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(`Error ${response.status}: ${errorBody}`);
@@ -85,13 +82,10 @@ export const updateBusinessByUser = async (userId, businessData) => {
 
 export const updateLogoBusinessById = async (businessId, logoData) => {
   try {
-    const response = await fetch(
-      API.BUSINESS.UPDATE_LOGO_BUSINESS_BY_ID(businessId),
-      {
-        method: 'PUT',
-        body: logoData,
-      },
-    );
+    const response = await fetch(API.BUSINESS.UPDATE_LOGO_BUSINESS_BY_ID(businessId), {
+      method: 'PUT',
+      body: logoData,
+    });
 
     if (!response.ok) {
       throw new Error('Error al actualizar el logo del negocio');
@@ -106,4 +100,24 @@ export const updateLogoBusinessById = async (businessId, logoData) => {
 
 export const generateLogoUri = (businessId) => {
   return `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(businessId)}?ts=${Date.now()}`;
+};
+
+export const getDashboardByBusinessId = async (businessId) => {
+  try {
+    const response = await fetch(API.BUSINESS.GET_DASHBOARD(businessId), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al obtener el dashboard del negocio');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('getDashboardByBusinessId error:', error);
+    throw error;
+  }
 };
