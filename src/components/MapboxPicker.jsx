@@ -25,25 +25,56 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isMovingToLocation, setIsMovingToLocation] = useState(false);
 
   const cameraRef = useRef(null);
   const mapRef = useRef(null);
   const geocodeTimeoutRef = useRef(null);
   const lastCoordsRef = useRef(selectedCoords);
   const isUserInteractingRef = useRef(false);
+  const lastManualUpdateRef = useRef(null);
+
+  // Movimiento manual del mapa
+  const handleManualMapMove = useCallback(async () => {
+    if (!mapRef.current || !isMapReady || isMovingToLocation) return;
+
+    try {
+      const center = await mapRef.current.getCenter();
+      if (center) {
+        const [lng, lat] = center;
+        const newCoords = { lat, lng };
+
+        // Prevenir actualizaciones demasiado frecuentes
+        const now = Date.now();
+        if (lastManualUpdateRef.current && now - lastManualUpdateRef.current < 500) {
+          return;
+        }
+        lastManualUpdateRef.current = now;
+
+        const shouldUpdate = Math.abs(newCoords.lat - lastCoordsRef.current.lat) > 0.0001 || Math.abs(newCoords.lng - lastCoordsRef.current.lng) > 0.0001;
+
+        if (shouldUpdate && isUserInteractingRef.current) {
+          setSelectedCoords(newCoords);
+          lastCoordsRef.current = newCoords;
+
+          // Llamar inmediatamente a reverseGeocode
+          reverseGeocodeMapbox(newCoords.lat, newCoords.lng, true);
+        }
+      }
+    } catch (error) {
+      console.error('Error obteniendo centro del mapa:', error);
+    }
+  }, [isMapReady, isMovingToLocation]);
 
   // Geocodificación inversa
   const reverseGeocodeMapbox = useCallback(
     async (lat, lng, updateOnLocationChange = true) => {
       try {
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAP.MAPBOX_ACCESS_TOKEN}&types=address,place,locality,neighborhood&language=es&limit=1`;
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAP.MAPBOX_ACCESS_TOKEN}&types=address,place,locality,neighborhood&language=es&limit=1&country=mx`;
 
         const response = await fetch(url);
 
         if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error('Token de Mapbox inválido o expirado');
-          }
           throw new Error(`Error en geocodificación: ${response.status}`);
         }
 
@@ -56,44 +87,72 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
         }
 
         setAddress(displayName);
-        if (updateOnLocationChange) {
-          onLocationChange?.({ lat, lng, display_name: displayName });
+
+        if (updateOnLocationChange && onLocationChange) {
+          const locationData = {
+            lat,
+            lng,
+            display_name: displayName,
+            place_name: displayName,
+            geometry: {
+              type: 'Point',
+              coordinates: [lng, lat],
+            },
+          };
+
+          onLocationChange(locationData);
         }
       } catch (error) {
         console.error('Error en geocodificación Mapbox:', error);
-        let errorMessage = 'Error al obtener la dirección';
-
-        if (error.message.includes('401')) {
-          errorMessage = 'Problema de autenticación con Mapbox';
-        }
-
-        const fallbackName = `${errorMessage} (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+        const fallbackName = `Ubicación (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
         setAddress(fallbackName);
-        if (updateOnLocationChange) {
-          onLocationChange?.({ lat, lng, display_name: fallbackName });
+        if (updateOnLocationChange && onLocationChange) {
+          onLocationChange({
+            lat,
+            lng,
+            display_name: fallbackName,
+            place_name: fallbackName,
+            geometry: {
+              type: 'Point',
+              coordinates: [lng, lat],
+            },
+          });
         }
       }
     },
     [onLocationChange],
   );
 
+  // Movimiento de la cámara
+  const moveCameraToLocation = useCallback(
+    (lat, lng, duration = 500) => {
+      if (cameraRef.current && isMapReady) {
+        setIsMovingToLocation(true);
+        cameraRef.current.flyTo([lng, lat], duration);
+
+        setTimeout(() => {
+          setIsMovingToLocation(false);
+        }, duration + 100);
+      }
+    },
+    [isMapReady],
+  );
+
+  // Efecto para cambios de props
   useEffect(() => {
-    if (latitude !== undefined && longitude !== undefined && !isUserInteractingRef.current) {
+    if (latitude !== undefined && longitude !== undefined && !isUserInteractingRef.current && !isMovingToLocation) {
       const newCoords = { lat: latitude, lng: longitude };
-      const shouldUpdate = Math.abs(newCoords.lat - lastCoordsRef.current.lat) > 0.0001 || Math.abs(newCoords.lng - lastCoordsRef.current.lng) > 0.0001;
+
+      const shouldUpdate = Math.abs(newCoords.lat - lastCoordsRef.current.lat) > 0.00001 || Math.abs(newCoords.lng - lastCoordsRef.current.lng) > 0.00001;
 
       if (shouldUpdate) {
         setSelectedCoords(newCoords);
         lastCoordsRef.current = newCoords;
-
-        if (cameraRef.current && isMapReady) {
-          cameraRef.current.flyTo([newCoords.lng, newCoords.lat], 500);
-        }
-
+        moveCameraToLocation(newCoords.lat, newCoords.lng);
         reverseGeocodeMapbox(newCoords.lat, newCoords.lng);
       }
     }
-  }, [latitude, longitude, isMapReady, reverseGeocodeMapbox]);
+  }, [latitude, longitude, isMapReady, reverseGeocodeMapbox, isMovingToLocation, moveCameraToLocation,]);
 
   // Obtención de ubicación actual
   const getCurrentLocation = useCallback(async () => {
@@ -108,6 +167,7 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
 
       const loc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
+        timeout: 10000,
       });
 
       const { latitude: currentLat, longitude: currentLng } = loc.coords;
@@ -115,66 +175,50 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
 
       setSelectedCoords(newCoords);
       lastCoordsRef.current = newCoords;
+      moveCameraToLocation(currentLat, currentLng, 1000);
       reverseGeocodeMapbox(currentLat, currentLng);
-
-      if (cameraRef.current && isMapReady) {
-        cameraRef.current.flyTo([currentLng, currentLat], 1000);
-      }
     } catch (error) {
       console.error('Error obteniendo ubicación:', error);
+      alert('No se pudo obtener la ubicación actual');
     } finally {
       setLoading(false);
     }
-  }, [isMapReady, reverseGeocodeMapbox]);
+  }, [isMapReady, reverseGeocodeMapbox, moveCameraToLocation]);
 
   // Inicialización del mapa
   const onMapLoaded = useCallback(() => {
     setIsMapReady(true);
+    console.log('🗺️ Mapa cargado y listo');
 
     if (latitude === undefined || longitude === undefined) {
       getCurrentLocation();
     } else {
-      reverseGeocodeMapbox(latitude, longitude);
+      setTimeout(() => {
+        moveCameraToLocation(latitude, longitude, 800);
+        reverseGeocodeMapbox(latitude, longitude);
+      }, 300);
     }
-  }, [latitude, longitude, getCurrentLocation, reverseGeocodeMapbox]);
+  }, [latitude, longitude, getCurrentLocation, reverseGeocodeMapbox, moveCameraToLocation,]);
 
-  const handleCameraChanged = useCallback((e) => {
-    if (e.properties && e.properties.isUserInteraction) {
+  const handleRegionIsChanging = useCallback((e) => {
+    if (e.properties.isUserInteraction) {
       isUserInteractingRef.current = true;
     }
   }, []);
 
-  const handleMapIdle = useCallback(() => {
-    if (mapRef.current && isMapReady) {
-      if (geocodeTimeoutRef.current) {
-        clearTimeout(geocodeTimeoutRef.current);
+  const handleRegionDidChange = useCallback(
+    (e) => {
+      if (e.properties.isUserInteraction) {
+        // Procesar inmediatamente el cambio
+        handleManualMapMove();
       }
+    },
+    [handleManualMapMove],
+  );
 
-      geocodeTimeoutRef.current = setTimeout(async () => {
-        try {
-          const center = await mapRef.current.getCenter();
-          if (center) {
-            const [lng, lat] = center;
-            const newCoords = { lat, lng };
-
-            const shouldUpdate =
-              Math.abs(newCoords.lat - lastCoordsRef.current.lat) > 0.0001 ||
-              Math.abs(newCoords.lng - lastCoordsRef.current.lng) > 0.0001;
-
-            if (shouldUpdate) {
-              setSelectedCoords(newCoords);
-              lastCoordsRef.current = newCoords;
-              reverseGeocodeMapbox(lat, lng);
-            }
-          }
-        } catch (error) {
-          console.error('Error obteniendo centro del mapa:', error);
-        }
-
-        isUserInteractingRef.current = false;
-      }, 400);
-    }
-  }, [isMapReady, reverseGeocodeMapbox]);
+  const handlePress = useCallback((e) => {
+    isUserInteractingRef.current = true;
+  }, []);
 
   // Cleanup
   useEffect(() => {
@@ -184,6 +228,27 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
       }
     };
   }, []);
+
+  // Efecto para responder a cambios de props
+  useEffect(() => {
+    if (latitude === undefined || longitude === undefined || !isMapReady) {
+      return;
+    }
+
+    const newCoords = { lat: latitude, lng: longitude };
+
+    const shouldUpdate = Math.abs(newCoords.lat - lastCoordsRef.current.lat) > 0.00001 || Math.abs(newCoords.lng - lastCoordsRef.current.lng) > 0.00001;
+
+    if (shouldUpdate) {
+      setSelectedCoords(newCoords);
+      lastCoordsRef.current = newCoords;
+
+      if (cameraRef.current) {
+        isUserInteractingRef.current = false;
+        cameraRef.current.flyTo([newCoords.lng, newCoords.lat], 500);
+      }
+    }
+  }, [latitude, longitude, isMapReady]);
 
   return (
     <View style={styles.container}>
@@ -200,8 +265,9 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
         attributionEnabled={false}
         localizeLabels={true}
         onDidFinishLoadingMap={onMapLoaded}
-        onMapIdle={handleMapIdle}
-        onCameraChanged={handleCameraChanged}
+        onRegionIsChanging={handleRegionIsChanging}
+        onRegionDidChange={handleRegionDidChange}
+        onPress={handlePress}
         surfaceView={true}
         renderMode={'continuous'}
       >
@@ -213,7 +279,6 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
           animationDuration={800}
         />
 
-        {/* Mostrar ubicación del usuario */}
         <MapboxGL.UserLocation
           visible={true}
           androidRenderMode={'normal'}
@@ -237,12 +302,20 @@ export default function MapboxPicker({ latitude, longitude, onLocationChange, })
         <Text style={styles.coordinatesText}>
           {selectedCoords.lat.toFixed(6)}, {selectedCoords.lng.toFixed(6)}
         </Text>
+        {isMovingToLocation && (
+          <View style={styles.movingIndicator}>
+            <ActivityIndicator size="small" color="#00CC86" />
+            <Text style={styles.movingText}>Moviendo mapa...</Text>
+          </View>
+        )}
       </View>
 
       <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
+        style={[
+          styles.button, (loading || isMovingToLocation) && styles.buttonDisabled,
+        ]}
         onPress={getCurrentLocation}
-        disabled={loading}
+        disabled={loading || isMovingToLocation}
       >
         {loading ? (
           <ActivityIndicator color="#fff" size="small" />
@@ -308,7 +381,7 @@ const styles = StyleSheet.create({
     top: 12,
     left: 12,
     right: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderRadius: 10,
     padding: 12,
     shadowColor: '#000',
@@ -329,6 +402,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 10,
     textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
+  },
+  movingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    gap: 6,
+  },
+  movingText: {
+    color: '#00CC86',
+    fontSize: 10,
     fontFamily: 'Poppins-Regular',
   },
   button: {

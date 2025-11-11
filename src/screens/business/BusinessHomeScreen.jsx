@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDashboardByBusinessId } from '../../services/BusinessService';
+import { updateDeliveryZoneOptions } from '../../services/DeliveryZoneService';
 import Coverage from '../../components/Coverage';
 import Commission from '../../components/Commission';
 import PaymentMethod from '../../components/PaymentMethod';
@@ -22,50 +24,97 @@ const Card = ({ children, style }) => (
   <View style={[styles.card, style]}>{children}</View>
 );
 
-const Button = ({ children, onPress, style }) => (
+const Button = ({ children, onPress, style, textStyle }) => (
   <TouchableOpacity style={[styles.button, style]} onPress={onPress}>
-    <Text style={styles.buttonText}>{children}</Text>
+    <Text style={[styles.buttonText, textStyle]}>{children}</Text>
   </TouchableOpacity>
 );
 
-const Badge = ({ children, style }) => (
-  <View style={[styles.badge, style]}>
-    <Text style={styles.badgeText}>{children}</Text>
-  </View>
+// Modal Personalizado
+const CustomModal = ({ visible, title, message, type = 'info', onConfirm, onCancel, confirmText = 'Aceptar', cancelText = 'Cancelar', }) => (
+  <Modal
+    visible={visible}
+    transparent={true}
+    animationType="fade"
+    onRequestClose={onCancel}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View
+          style={[
+            styles.modalIcon,
+            type === 'success' ? styles.modalIconSuccess : type === 'error' ? styles.modalIconError : styles.modalIconInfo,
+          ]}
+        >
+          <Feather
+            name={
+              type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'
+            }
+            size={32}
+            color="#fff"
+          />
+        </View>
+
+        <Text style={styles.modalTitle}>{title}</Text>
+        <Text style={styles.modalMessage}>{message}</Text>
+
+        <View style={styles.modalButtons}>
+          {onCancel && (
+            <Button
+              style={styles.modalCancelButton}
+              textStyle={styles.modalCancelButtonText}
+              onPress={onCancel}
+            >
+              {cancelText}
+            </Button>
+          )}
+          <Button
+            style={[
+              styles.modalConfirmButton,
+              type === 'success' ? styles.modalConfirmButtonSuccess : type === 'error' ? styles.modalConfirmButtonError : styles.modalConfirmButtonInfo,
+            ]}
+            onPress={onConfirm}
+          >
+            {confirmText}
+          </Button>
+        </View>
+      </View>
+    </View>
+  </Modal>
 );
 
 // Mapeo completo de sectores
 const SECTOR_MAP = {
-  'food': {
+  food: {
     name: 'Alimentos y Bebidas',
     icon: '🍔',
-    description: 'Restaurantes, cafeterías, comida rápida, etc.'
+    description: 'Restaurantes, cafeterías, comida rápida, etc.',
   },
-  'technology': {
+  technology: {
     name: 'Electrónica y Tecnología',
     icon: '💻',
-    description: 'Dispositivos electrónicos, computadoras, smartphones, etc.'
+    description: 'Dispositivos electrónicos, computadoras, smartphones, etc.',
   },
-  'fashion': {
+  fashion: {
     name: 'Moda y Calzado',
     icon: '👕',
-    description: 'Ropa, calzado, accesorios, etc.'
+    description: 'Ropa, calzado, accesorios, etc.',
   },
-  'hardware': {
+  hardware: {
     name: 'Ferretería',
     icon: '🛠',
-    description: 'Herramientas, materiales de construcción, etc.'
+    description: 'Herramientas, materiales de construcción, etc.',
   },
-  'pharmacy': {
+  pharmacy: {
     name: 'Farmacia',
     icon: '💊',
-    description: 'Medicamentos, productos de cuidado personal, etc.'
+    description: 'Medicamentos, productos de cuidado personal, etc.',
   },
-  'other': {
+  other: {
     name: 'Otro',
     icon: '🏢',
-    description: 'Otro tipo de negocio'
-  }
+    description: 'Otro tipo de negocio',
+  },
 };
 
 // Función auxiliar para obtener información del sector
@@ -75,23 +124,22 @@ const getSectorInfo = (sectorKey) => {
       name: 'No configurado',
       icon: '🏢',
       description: 'Sector no especificado',
-      isConfigured: false
+      isConfigured: false,
     };
   }
-  
+
   const sectorInfo = SECTOR_MAP[sectorKey.toLowerCase()];
   if (!sectorInfo) {
     return {
       name: 'Desconocido',
       icon: '❓',
       description: 'Sector no reconocido',
-      isConfigured: false
+      isConfigured: false,
     };
   }
-  
+
   return {
-    ...sectorInfo,
-    isConfigured: true
+    ...sectorInfo, isConfigured: true,
   };
 };
 
@@ -108,7 +156,8 @@ const SectorCard = ({ sector, icon, description }) => (
       <Text style={styles.emoji}>{icon || '🏢'}</Text>
       <View style={styles.sectorTextContainer}>
         <Text style={styles.sectorText}>
-          Tu sector actual: <Text style={styles.sectorName}>{sector || 'No configurado'}</Text>
+          Tu sector actual:{' '}
+          <Text style={styles.sectorName}>{sector || 'No configurado'}</Text>
         </Text>
         {description && (
           <Text style={styles.sectorDescription}>{description}</Text>
@@ -133,31 +182,224 @@ export default function BusinessHomeScreen() {
   const [zonesCommissions, setZonesCommissions] = useState([]);
   const [pointsCommissions, setPointsCommissions] = useState([]);
 
+  // Estado compartido para sincronización visual
+  const [deliveryOptions, setDeliveryOptions] = useState({
+    homeDeliveryEnabled: false,
+    pickupEnabled: false,
+    deliveryCentersEnabled: false,
+    zones: [],
+    points: [],
+  });
+
+  // Estados para rollback completo
+  const [initialCommissionsState, setInitialCommissionsState] = useState({
+    zones: [],
+    points: [],
+  });
+  const [previousDeliveryOptions, setPreviousDeliveryOptions] = useState(null);
+
+  // Estado para modales
+  const [modal, setModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: null,
+    onCancel: null,
+  });
+
+  const [businessId, setBusinessId] = useState(null);
+
+  // Mostrar modal personalizado
+  const showModal = (title, message, type = 'info', onConfirm = null, onCancel = null,) => {
+    setModal({
+      visible: true,
+      title,
+      message,
+      type,
+      onConfirm: onConfirm || (() => setModal({ ...modal, visible: false })),
+      onCancel: onCancel || (() => setModal({ ...modal, visible: false })),
+    });
+  };
+
+  // Función para extraer ID numérico
+  const extractNumericId = (id) => {
+    if (!id) {
+      return Date.now();
+    }
+
+    if (typeof id === 'number') {
+      return id;
+    }
+
+    if (typeof id === 'string' && id.startsWith('place.')) {
+      const numericPart = id.replace('place.', '');
+      const numericId = parseInt(numericPart, 10);
+      return isNaN(numericId) ? Date.now() : numericId;
+    }
+
+    if (typeof id === 'string') {
+      const numericId = parseInt(id, 10);
+      return isNaN(numericId) ? Date.now() : numericId;
+    }
+
+    return Date.now();
+  };
+
+  // Transforma center a objeto CenterDTO
+  const transformCenterToDTO = (items) => {
+    return items.map((item) => {
+      // Si center es null o undefined, intentar obtener de geometry
+      if (!item.center && item.geometry?.coordinates) {
+        const coords = item.geometry.coordinates;
+        if (Array.isArray(coords) && coords.length >= 2) {
+          return {
+            ...item,
+            center: {
+              longitude: coords[0],
+              latitude: coords[1],
+            },
+          };
+        }
+      }
+
+      // Si center es un array, transformarlo a objeto
+      if (item.center && Array.isArray(item.center)) {
+        return {
+          ...item,
+          center: {
+            longitude: item.center[0],
+            latitude: item.center[1],
+          },
+        };
+      }
+
+      // Si center ya es un objeto, mantenerlo
+      if (item.center && typeof item.center === 'object') {
+        return item;
+      }
+
+      // Si no hay center válido, mantener el item original
+      return item;
+    });
+  };
+
+  // 🔄 Reload data
+  const reloadDashboardData = async (specificBusinessId = null) => {
+    try {
+      const idToUse = specificBusinessId || businessId;
+
+      // Validar que businessId sea válido
+      if (!idToUse || idToUse === 'null' || idToUse === 'undefined') {
+        console.error('❌ BusinessId inválido:', idToUse);
+        setError('ID de negocio no válido');
+        return;
+      }
+
+      console.log('🔄 Recargando datos del dashboard para businessId:', idToUse,);
+      const data = await getDashboardByBusinessId(idToUse);
+
+      if (!data) {
+        console.error('❌ No se recibieron datos del dashboard');
+        setError('No se pudieron cargar los datos del negocio');
+        return;
+      }
+
+      setDashboardData(data);
+      setError(null);
+
+      // Actualizar delivery options
+      if (data?.deliveryZones?.[0]) {
+        const zoneData = data.deliveryZones[0];
+
+        // Asegurar eliminación de type
+        const transformAndCleanItem = (item) => {
+          if (!item) return item;
+
+          let transformed = { ...item };
+
+          // Transformar center si es array o si está en geometry
+          if (transformed.center && Array.isArray(transformed.center)) {
+            transformed.center = {
+              longitude: transformed.center[0],
+              latitude: transformed.center[1],
+            };
+          } else if (!transformed.center && transformed.geometry?.coordinates) {
+            const coords = transformed.geometry.coordinates;
+            if (Array.isArray(coords) && coords.length >= 2) {
+              transformed.center = {
+                longitude: coords[0],
+                latitude: coords[1],
+              };
+            }
+          }
+
+          // Asegurar que el ID sea numérico
+          transformed.id = extractNumericId(transformed.id);
+
+          delete transformed.type;
+          if (transformed.geometry && transformed.geometry.type) {
+            delete transformed.geometry.type;
+          }
+
+          return transformed;
+        };
+
+        const initialOptions = {
+          homeDeliveryEnabled: zoneData.homeDeliveryEnabled || false,
+          pickupEnabled: zoneData.pickupEnabled || false,
+          deliveryCentersEnabled: zoneData.deliveryCentersEnabled || false,
+          zones: (zoneData.zones || []).map(transformAndCleanItem),
+          points: (zoneData.points || []).map(transformAndCleanItem),
+          deliveryZone: zoneData,
+        };
+
+        setDeliveryOptions(initialOptions);
+        setPreviousDeliveryOptions(initialOptions);
+      }
+
+      // Transformar datos para el componente Commission
+      if (data?.zoneCommissions && data?.deliveryZones?.[0]) {
+        console.log('🔄 Actualizando comisiones con nuevos datos...');
+        transformCommissionData(data.zoneCommissions, data.deliveryZones[0]);
+      }
+    } catch (error) {
+      console.error('❌ Error recargando datos:', error);
+      setError('Error al cargar los datos del negocio: ' + error.message);
+    }
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const stored = await AsyncStorage.getItem('userInfo');
+
         if (stored) {
           const user = JSON.parse(stored);
-          const businessId = user.businessId;
-          
-          if (businessId) {
-            const data = await getDashboardByBusinessId(businessId);
-            setDashboardData(data);
-            
-            // Transformar datos para el componente Commission
-            if (data?.zoneCommissions && data?.deliveryZones?.[0]) {
-              transformCommissionData(data.zoneCommissions, data.deliveryZones[0]);
-            }
-          } else {
-            setError('No se encontró businessId en userInfo');
+          const id = user.businessId;
+
+          // Validar que el businessId sea válido
+          if (!id || id === 'null' || id === 'undefined') {
+            console.error('❌ BusinessId no válido en userInfo:', id);
+            setError('ID de negocio no válido en la configuración');
+            setLoading(false);
+            return;
           }
+
+          setBusinessId(id);
+          await reloadDashboardData(id);
         } else {
-          setError('No se encontró userInfo en AsyncStorage');
+          console.error('❌ No se encontró userInfo en AsyncStorage');
+          setError('No se encontró información de usuario');
         }
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setError('Error al cargar los datos del dashboard');
+        console.error('❌ Error fetching dashboard data:', error);
+        setError('Error al cargar los datos del dashboard: ' + error.message);
+        showModal(
+          'Error',
+          'No se pudieron cargar los datos del dashboard',
+          'error',
+        );
       } finally {
         setLoading(false);
       }
@@ -170,120 +412,295 @@ export default function BusinessHomeScreen() {
   const transformCommissionData = (zoneCommissions, deliveryZone) => {
     const transformCommissionData = (commissions) => {
       return commissions.map((item) => ({
-        id: item.zoneCommissionId,
+        id: item.zoneCommissionId || item.id,
         name: item.address,
         type: item.shippingType === 'DELIVERY' ? 'delivery' : 'pickup',
         selectedOption: item.selectedOption || 'free',
         commissionAmount: item.commissionAmount?.toString() || '',
-        coordinates: item.coordinates ? JSON.parse(item.coordinates) : {},
+        coordinates: item.coordinates ? typeof item.coordinates === 'string' ? JSON.parse(item.coordinates) : item.coordinates : {},
         address: item.address,
+        // ZoneCommissionId real para las eliminaciones
+        zoneCommissionId: item.zoneCommissionId,
+        // Referencia de entrega si existe
+        deliveryZoneId: item.deliveryZone?.id,
+        ...item,
       }));
     };
 
-    const deliveryZones = zoneCommissions.filter(
-      item => item.shippingType === 'DELIVERY'
-    );
-    const pickupPoints = zoneCommissions.filter(
-      item => item.shippingType === 'PICKUP'
-    );
+    const deliveryZones = zoneCommissions.filter((item) => item.shippingType === 'DELIVERY',);
+    const pickupPoints = zoneCommissions.filter((item) => item.shippingType === 'PICKUP',);
+
+    console.log('🔄 Transformando comisiones:', {
+      deliveryZones: deliveryZones.length,
+      pickupPoints: pickupPoints.length,
+    });
 
     setZonesCommissions(transformCommissionData(deliveryZones));
     setPointsCommissions(transformCommissionData(pickupPoints));
   };
 
-  const handleCoverageUpdate = (updatedCoverage) => {
-    setDashboardData(prev => ({
-      ...prev,
-      deliveryOptions: updatedCoverage
-    }));
+  // Manejador para cuando Coverage entra en edición
+  const handleCoverageEdit = () => {
+    console.log('📝 Iniciando edición - Guardando estado inicial de comisiones',);
+    // Guardar estado actual de comisiones para posible rollback
+    setInitialCommissionsState({
+      zones: [...zonesCommissions],
+      points: [...pointsCommissions],
+    });
+  };
+
+  // Auxiliar para obtener zoneCommissionIds eliminados
+  const getDeletedZoneCommissionIds = (initialCommissions, currentCommissions,) => {
+    const initialIds = new Set(
+      initialCommissions
+        .map((item) => item.zoneCommissionId || item.id)
+        .filter(Boolean),
+    );
+    const currentIds = new Set(
+      currentCommissions
+        .map((item) => item.zoneCommissionId || item.id)
+        .filter(Boolean),
+    );
+
+    const deletedIds = [];
+    initialIds.forEach((id) => {
+      if (!currentIds.has(id)) {
+        deletedIds.push(id);
+      }
+    });
+
+    console.log('🗑️ ZoneCommissionIds eliminados:', {
+      initialIds: Array.from(initialIds),
+      currentIds: Array.from(currentIds),
+      deletedIds,
+    });
+
+    return deletedIds;
+  };
+
+  // Manejador para eliminaciones inmediatas
+  const handleImmediateItemRemoval = (type, removedId, address = null) => {
+    console.log(`🗑️ Eliminación inmediata: ${type} - ${removedId}`, address ? `(address: ${address})` : '',);
+
+    // Normalizar ID
+    const normalizeId = (id) => {
+      if (!id) return null;
+      if (typeof id === 'number') return id;
+      if (typeof id === 'string') {
+        if (id.startsWith('place.')) {
+          const numericPart = id.replace('place.', '');
+          return parseInt(numericPart, 10);
+        }
+        return parseInt(id, 10);
+      }
+      return null;
+    };
+
+    const numericRemovedId = normalizeId(removedId);
+
+    if (type === 'zones') {
+      const updatedZones = zonesCommissions.filter((commission) => {
+        const commissionId = commission.zoneCommissionId || commission.id;
+        const numericCommissionId = normalizeId(commissionId);
+        return numericCommissionId !== numericRemovedId;
+      });
+      setZonesCommissions([...updatedZones]);
+    } else if (type === 'points') {
+      const updatedPoints = pointsCommissions.filter((commission) => {
+        const commissionId = commission.zoneCommissionId || commission.id;
+        const numericCommissionId = normalizeId(commissionId);
+        return numericCommissionId !== numericRemovedId;
+      });
+      setPointsCommissions([...updatedPoints]);
+    }
+
+    console.log('✅ Eliminación procesada');
+  };
+
+  // Manejador para rollback completo
+  const handleCoverageRollback = (rollbackOptions) => {
+    console.log('🔄 Ejecutando rollback completo');
+
+    // 1. Rollback de deliveryOptions
+    setDeliveryOptions(rollbackOptions);
+
+    // 2. Rollback de comisiones
+    setZonesCommissions([...initialCommissionsState.zones]);
+    setPointsCommissions([...initialCommissionsState.points]);
+
+    console.log('✅ Rollback completado - Comisiones restauradas:', {
+      zones: initialCommissionsState.zones.length,
+      points: initialCommissionsState.points.length,
+    });
+  };
+
+  const handleCoverageUpdate = async (updatedOptions, shouldSaveToBackend = true,) => {
+    if (!businessId || businessId === 'null' || businessId === 'undefined') {
+      console.error('❌ BusinessId inválido para guardar:', businessId);
+      showModal('Error', 'ID de negocio no válido', 'error');
+      return false;
+    }
+
+    setPreviousDeliveryOptions(deliveryOptions);
+    setDeliveryOptions(updatedOptions);
+
+    if (shouldSaveToBackend && businessId) {
+      try {
+        // Transformar center a objeto CenterDTO
+        const zonesWithCenterDTO = transformCenterToDTO(updatedOptions.zones || [],);
+        const pointsWithCenterDTO = transformCenterToDTO(updatedOptions.points || [],);
+
+        // Validar que todas las zonas y puntos tengan center válido
+        const invalidZones = zonesWithCenterDTO.filter((zone) => !zone.center);
+        const invalidPoints = pointsWithCenterDTO.filter((point) => !point.center,);
+
+        if (invalidZones.length > 0 || invalidPoints.length > 0) {
+          console.warn('⚠️ Algunas ubicaciones no tienen coordenadas válidas:',
+            {
+              invalidZones: invalidZones.length,
+              invalidPoints: invalidPoints.length,
+            },
+          );
+        }
+
+        const payload = {
+          businessAuxId: Number(businessId),
+          homeDeliveryEnabled: updatedOptions.homeDeliveryEnabled,
+          pickupEnabled: updatedOptions.pickupEnabled,
+          deliveryCentersEnabled: updatedOptions.deliveryCentersEnabled,
+          zones: zonesWithCenterDTO,
+          points: pointsWithCenterDTO,
+          deletedZones: getDeletedZoneCommissionIds(initialCommissionsState.zones, zonesCommissions,),
+          deletedPoints: getDeletedZoneCommissionIds(initialCommissionsState.points, pointsCommissions,),
+        };
+
+        console.log('📤 Enviando payload con CenterDTO válido:', {
+          ...payload,
+          sampleZone: payload.zones.length > 0 ? payload.zones[0] : 'No zones',
+          samplePoint: payload.points.length > 0 ? payload.points[0] : 'No points',
+        });
+
+        await updateDeliveryZoneOptions(businessId, payload);
+
+        console.log('🔄 Recargando datos para actualizar Commission...');
+        await reloadDashboardData();
+
+        showModal('Éxito', 'Cobertura actualizada correctamente', 'success');
+        setInitialCommissionsState({ zones: [], points: [] });
+        return true;
+      } catch (error) {
+        console.error('Error guardando cobertura:', error);
+        setDeliveryOptions(previousDeliveryOptions);
+        setZonesCommissions([...initialCommissionsState.zones]);
+        setPointsCommissions([...initialCommissionsState.points]);
+        showModal('Error', 'No se pudo guardar la cobertura', 'error');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Manejador para cambios en switches (actualización inmediata)
+  const handleSwitchChange = (option, newValue) => {
+    const updatedOptions = {
+      ...deliveryOptions,
+      [option]: newValue,
+    };
+
+    // Actualización visual inmediata sin guardar en backend
+    handleCoverageUpdate(updatedOptions, false);
   };
 
   const handleCommissionsUpdate = (updatedZones, updatedPoints) => {
     console.log('Comisiones actualizadas - zonas:', updatedZones);
     console.log('Comisiones actualizadas - puntos:', updatedPoints);
-    
+
     setZonesCommissions(updatedZones);
     setPointsCommissions(updatedPoints);
   };
 
   const handlePaymentMethodsUpdate = (updatedPaymentMethods) => {
-    setDashboardData(prev => ({
-      ...prev,
-      business: {
-        ...prev.business,
-        ...updatedPaymentMethods
-      }
-    }));
+    if (dashboardData && dashboardData.business) {
+      setDashboardData((prev) => ({
+        ...prev,
+        business: {
+          ...prev.business,
+          ...updatedPaymentMethods,
+        },
+      }));
+    }
   };
 
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color="#00CC86" />
-        <Text style={styles.loadingText}>Cargando información del negocio...</Text>
+        <Text style={styles.loadingText}>
+          Cargando información del negocio...
+        </Text>
       </View>
     );
   }
 
-  if (error) {
+  if (error || !dashboardData) {
     return (
       <View style={[styles.container, styles.centered]}>
         <MaterialIcons name="error-outline" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
-        <Button style={styles.primaryButton} onPress={() => window.location.reload()}>
+        <Text style={styles.errorText}>
+          {error || 'No se pudieron cargar los datos del negocio'}
+        </Text>
+        <Button
+          style={styles.primaryButton}
+          onPress={() => reloadDashboardData()}
+        >
           Reintentar
         </Button>
       </View>
     );
   }
 
-  const { business, sector, deliveryZones } = dashboardData;
+  // Usar operador de encadenamiento opcional para evitar errores
+  const business = dashboardData?.business || {};
+  const sector = dashboardData?.sector;
 
   // Obtener información validada del sector
   const sectorInfo = getSectorInfo(sector?.iconName);
-  
-  // Transformar datos para Coverage
-  const deliveryOptions = deliveryZones && deliveryZones.length > 0 ? {
-    homeDeliveryEnabled: deliveryZones[0].homeDeliveryEnabled || false,
-    pickupEnabled: deliveryZones[0].pickupEnabled || false,
-    deliveryCentersEnabled: deliveryZones[0].deliveryCentersEnabled || false,
-    zones: deliveryZones[0].zones || [],
-    points: deliveryZones[0].points || [],
-    deliveryZone: deliveryZones[0]
-  } : {
-    homeDeliveryEnabled: false,
-    pickupEnabled: false,
-    deliveryCentersEnabled: false,
-    zones: [],
-    points: []
-  };
 
   return (
     <View style={styles.container}>
       <View style={styles.mobileFrame}>
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>{business?.fullName || 'Mi Negocio'}</Text>
+              <Text style={styles.headerTitle}>
+                {business?.fullName || 'Mi Negocio'}
+              </Text>
               <Text style={styles.headerSubtitle}>Dashboard</Text>
             </View>
 
             {/* Card 1: Sector */}
-            <SectorCard 
+            <SectorCard
               sector={sectorInfo.name}
               icon={sectorInfo.icon}
               description={sectorInfo.description}
             />
 
             {/* Card 2: Coverage */}
-            <Coverage 
-              businessId={business?.businessId}
+            <Coverage
+              businessId={businessId}
               deliveryOptions={deliveryOptions}
               onUpdate={handleCoverageUpdate}
+              onSwitchChange={handleSwitchChange}
+              onRollback={handleCoverageRollback}
+              zonesCommissions={zonesCommissions}
+              pointsCommissions={pointsCommissions}
+              showModal={showModal}
+              onItemRemoval={handleImmediateItemRemoval}
+              onEditStart={handleCoverageEdit}
             />
 
             {/* Card 3: Commission */}
@@ -294,24 +711,36 @@ export default function BusinessHomeScreen() {
                 onZonesCommissionsChange={setZonesCommissions}
                 onPointsCommissionsChange={setPointsCommissions}
                 onUpdate={handleCommissionsUpdate}
-                businessId={business?.businessId}
+                businessId={businessId}
+                deliveryOptions={deliveryOptions}
+                showModal={showModal}
               />
             </Card>
 
             {/* Card 4: Payment Methods */}
             <Card style={styles.paymentCard}>
-              <PaymentMethod 
+              <PaymentMethod
                 business={business}
-                businessId={business?.businessId}
+                businessId={businessId}
                 onUpdate={handlePaymentMethodsUpdate}
               />
             </Card>
           </View>
         </ScrollView>
       </View>
+
+      {/* Modal Personalizado */}
+      <CustomModal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
+      />
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -482,16 +911,85 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  badge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
-  badgeText: {
-    color: '#2E7D32',
-    fontSize: 14,
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalIconSuccess: {
+    backgroundColor: '#10B981',
+  },
+  modalIconError: {
+    backgroundColor: '#EF4444',
+  },
+  modalIconInfo: {
+    backgroundColor: '#3B82F6',
+  },
+  modalTitle: {
+    fontSize: 20,
     fontFamily: 'Poppins-SemiBold',
-    letterSpacing: 0.2,
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  modalCancelButtonText: {
+    color: '#374151',
+  },
+  modalConfirmButton: {
+    flex: 1,
+  },
+  modalConfirmButtonSuccess: {
+    backgroundColor: '#10B981',
+  },
+  modalConfirmButtonError: {
+    backgroundColor: '#EF4444',
+  },
+  modalConfirmButtonInfo: {
+    backgroundColor: '#3B82F6',
   },
 });

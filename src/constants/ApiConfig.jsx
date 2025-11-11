@@ -43,6 +43,7 @@ export const API = {
   ZONES: {
     CREATE: `${BASE_URL}/zones-coverage/create`,
     GET_BY_BUSINESS: (businessId) => `${BASE_URL}/zones-coverage/getDeliveryZonesByBusiness/${businessId}`,
+    UPDATE_OPTIONS: (businessId) => `${BASE_URL}/zones-coverage/${businessId}/update-options`,
   },
   COMMISSIONS: {
     CREATE_BATCH: `${BASE_URL}/zone-commissions/batch`,

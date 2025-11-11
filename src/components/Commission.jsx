@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,66 +7,233 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Keyboard,
+  Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLOR } from '../constants/Color';
 
-export default function Commission({
-  zonesCommissions,
-  pointsCommissions,
-  onZonesCommissionsChange,
-  onPointsCommissionsChange,
-  onUpdate,
-  businessId,
-}) {
+const CommissionModal = ({ visible, title, message, type = 'info', onConfirm, onCancel, confirmText = 'Aceptar', cancelText = 'Cancelar', }) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View
+            style={[
+              styles.modalIcon, type === 'success' ? styles.modalIconSuccess : type === 'error' ? styles.modalIconError : styles.modalIconInfo,
+            ]}
+          >
+            <Feather
+              name={
+                type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'
+              }
+              size={32}
+              color="#fff"
+            />
+          </View>
+
+          <Text style={styles.modalTitle}>{title}</Text>
+          <Text style={styles.modalMessage}>{message}</Text>
+
+          <View style={styles.modalButtons}>
+            {onCancel && (
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={onCancel}
+              >
+                <Text style={styles.modalCancelButtonText}>{cancelText}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.modalConfirmButton,
+                type === 'success' ? styles.modalConfirmButtonSuccess : type === 'error' ? styles.modalConfirmButtonError : styles.modalConfirmButtonInfo,
+              ]}
+              onPress={onConfirm}
+            >
+              <Text style={styles.modalConfirmButtonText}>{confirmText}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+export default function Commission({ zonesCommissions, pointsCommissions, onZonesCommissionsChange, onPointsCommissionsChange, onUpdate, businessId, deliveryOptions, showModal, }) {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [originalZones, setOriginalZones] = useState([]);
   const [originalPoints, setOriginalPoints] = useState([]);
 
+  // Estado para modales internos
+  const [internalModal, setInternalModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: null,
+    onCancel: null,
+  });
+
+  // Estado para controlar cambios
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Estado local siempre se actualiza
+  const [localZones, setLocalZones] = useState(zonesCommissions || []);
+  const [localPoints, setLocalPoints] = useState(pointsCommissions || []);
+
+  // Sincronizar inmediatamente cuando las props cambien
+  useEffect(() => {
+    console.log('🔄 Commission - Props actualizadas:', {
+      zones: zonesCommissions?.length || 0,
+      points: pointsCommissions?.length || 0,
+    });
+
+    setLocalZones(zonesCommissions || []);
+    setLocalPoints(pointsCommissions || []);
+  }, [zonesCommissions, pointsCommissions]);
+
+  // Mostrar modal interno
+  const showInternalModal = (title, message, type = 'info', onConfirm = null, onCancel = null,) => {
+    setInternalModal({
+      visible: true,
+      title,
+      message,
+      type,
+      onConfirm: onConfirm
+        ? () => {
+            onConfirm();
+            setInternalModal((prev) => ({ ...prev, visible: false }));
+          }
+        : () => setInternalModal((prev) => ({ ...prev, visible: false })),
+      onCancel: onCancel
+        ? () => {
+            onCancel();
+            setInternalModal((prev) => ({ ...prev, visible: false }));
+          }
+        : () => setInternalModal((prev) => ({ ...prev, visible: false })),
+    });
+  };
+
+  // Efecto para detectar cambios
+  useEffect(() => {
+    if (editing) {
+      const zonesChanged = JSON.stringify(localZones) !== JSON.stringify(originalZones);
+      const pointsChanged = JSON.stringify(localPoints) !== JSON.stringify(originalPoints);
+      setHasChanges(zonesChanged || pointsChanged);
+    }
+  }, [localZones, localPoints, editing, originalZones, originalPoints]);
+
+  // Para filtrar comisiones
+  const getFilteredCommissions = useCallback(
+    (commissions, type) => {
+      if (!deliveryOptions) return [];
+
+      let shouldShow = false;
+
+      if (type === 'delivery') {
+        shouldShow = deliveryOptions.homeDeliveryEnabled === true;
+      } else if (type === 'pickup') {
+        shouldShow = deliveryOptions.deliveryCentersEnabled === true;
+      }
+
+      return shouldShow ? commissions || [] : [];
+    },
+    [deliveryOptions],
+  );
+
+  const filteredZonesCommissions = getFilteredCommissions(localZones, 'delivery',);
+  const filteredPointsCommissions = getFilteredCommissions(localPoints, 'pickup',);
+
   const handleEdit = () => {
-    setOriginalZones([...zonesCommissions]);
-    setOriginalPoints([...pointsCommissions]);
+    console.log('✏️ Commission - Iniciando edición');
+    setOriginalZones([...localZones]);
+    setOriginalPoints([...localPoints]);
     setEditing(true);
+    setHasChanges(false);
   };
 
   const handleSave = async () => {
     Keyboard.dismiss();
 
+    if (!businessId || businessId === 'null' || businessId === 'undefined') {
+      console.error('❌ BusinessId inválido en Commission:', businessId);
+      if (showModal) {
+        showModal('Error', 'ID de negocio no válido', 'error');
+      } else {
+        showInternalModal('Error', 'ID de negocio no válido', 'error');
+      }
+      return;
+    }
+
+    // Validar comisiones incompletas
+    const allCommissions = [...localZones, ...localPoints];
+    const invalidCommissions = allCommissions.filter((item) => item.selectedOption === 'commission' && !item.commissionAmount,);
+
+    if (invalidCommissions.length > 0) {
+      showInternalModal(
+        'Comisiones incompletas',
+        'Algunas zonas o puntos tienen comisión seleccionada pero no tienen monto asignado. Por favor, completa la información.',
+        'info',
+      );
+      return;
+    }
+
     setLoading(true);
     try {
-      const allCommissions = [...zonesCommissions, ...pointsCommissions];
-      const invalidCommissions = allCommissions.filter(
-        (item) =>
-          item.selectedOption === 'commission' && !item.commissionAmount,
-      );
-
-      if (invalidCommissions.length > 0) {
-        Alert.alert('Comisiones incompletas', 'Algunas zonas o puntos tienen comisión seleccionada pero no tienen monto asignado. Por favor, completa la información.',);
-        setLoading(false);
-        return;
-      }
-
       if (onUpdate) {
-        await onUpdate(zonesCommissions, pointsCommissions);
+        await onUpdate(localZones, localPoints);
       }
 
       setEditing(false);
-      Alert.alert('Éxito', 'Comisiones actualizadas correctamente');
+      setHasChanges(false);
+      if (showModal) {
+        showModal('Éxito', 'Comisiones actualizadas correctamente', 'success');
+      } else {
+        showInternalModal(
+          'Éxito',
+          'Comisiones actualizadas correctamente',
+          'success',
+        );
+      }
     } catch (error) {
-      Alert.alert('Error', 'No se pudieron guardar las comisiones');
+      if (showModal) {
+        showModal('Error', 'No se pudieron guardar las comisiones', 'error');
+      } else {
+        showInternalModal('Error', 'No se pudieron guardar las comisiones', 'error');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    Keyboard.dismiss();
-    onZonesCommissionsChange(originalZones);
-    onPointsCommissionsChange(originalPoints);
-    setEditing(false);
+    if (hasChanges) {
+      showInternalModal(
+        '¿Descartar cambios?',
+        'Tienes cambios sin guardar en las comisiones. ¿Estás seguro de que quieres descartarlos?',
+        'info',
+        () => {
+          // Make rollback
+          setLocalZones([...originalZones]);
+          setLocalPoints([...originalPoints]);
+          if (onZonesCommissionsChange)
+            onZonesCommissionsChange([...originalZones]);
+          if (onPointsCommissionsChange)
+            onPointsCommissionsChange([...originalPoints]);
+          setEditing(false);
+          setHasChanges(false);
+        },
+      );
+    } else {
+      setEditing(false);
+    }
   };
 
   const handleOptionSelect = (id, type, option) => {
@@ -84,9 +251,13 @@ export default function Commission({
       );
 
     if (type === 'delivery') {
-      onZonesCommissionsChange(updater(zonesCommissions));
+      const updated = updater(localZones);
+      setLocalZones(updated);
+      if (onZonesCommissionsChange) onZonesCommissionsChange(updated);
     } else {
-      onPointsCommissionsChange(updater(pointsCommissions));
+      const updated = updater(localPoints);
+      setLocalPoints(updated);
+      if (onPointsCommissionsChange) onPointsCommissionsChange(updated);
     }
   };
 
@@ -101,9 +272,13 @@ export default function Commission({
       );
 
     if (type === 'delivery') {
-      onZonesCommissionsChange(updater(zonesCommissions));
+      const updated = updater(localZones);
+      setLocalZones(updated);
+      if (onZonesCommissionsChange) onZonesCommissionsChange(updated);
     } else {
-      onPointsCommissionsChange(updater(pointsCommissions));
+      const updated = updater(localPoints);
+      setLocalPoints(updated);
+      if (onPointsCommissionsChange) onPointsCommissionsChange(updated);
     }
   };
 
@@ -113,14 +288,49 @@ export default function Commission({
     }
   };
 
-  const deliveryZones = zonesCommissions || [];
-  const pickupPoints = pointsCommissions || [];
+  // Detectar si hay comisiones ocultas
+  const hasHiddenCommissions =
+    (localZones &&
+      localZones.length > 0 &&
+      filteredZonesCommissions.length === 0) ||
+    (localPoints &&
+      localPoints.length > 0 &&
+      filteredPointsCommissions.length === 0);
+
+  // Detectar si no hay comisiones visibles
+  const noVisibleCommissions =
+    filteredZonesCommissions.length === 0 &&
+    filteredPointsCommissions.length === 0;
+
+  // Renderizar estado de sincronización
+  const renderSyncStatus = () => {
+    if (hasHiddenCommissions) {
+      return (
+        <View style={styles.syncStatus}>
+          <Feather name="info" size={14} color="#B45309" />
+          <Text style={styles.syncText}>
+            Sincronizado • Algunas comisiones están ocultas
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.syncStatus}>
+        <Feather name="check-circle" size={14} color="#059669" />
+        <Text style={styles.syncText}>Sincronizado con cobertura</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
       {!editing && (
         <View style={styles.header}>
-          <Text style={styles.title}>Configuración de Comisiones</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.title}>Configuración de Comisiones</Text>
+            {renderSyncStatus()}
+          </View>
           <TouchableOpacity onPress={handleEdit}>
             <Feather name="edit" size={20} color="#00CC86" />
           </TouchableOpacity>
@@ -138,7 +348,19 @@ export default function Commission({
           onStartShouldSetResponder={() => true}
           onResponderRelease={handleContainerPress}
         >
-          {deliveryZones.length > 0 && (
+          {/* Mensaje cuando hay comisiones ocultas */}
+          {hasHiddenCommissions && (
+            <View style={styles.warningBox}>
+              <Feather name="info" size={16} color="#B45309" />
+              <Text style={styles.warningText}>
+                Algunas comisiones están ocultas porque los métodos de entrega
+                correspondientes están desactivados en la sección de Cobertura.
+              </Text>
+            </View>
+          )}
+
+          {/* Zonas de entrega a domicilio - Solo si homeDeliveryEnabled esta Activo */}
+          {filteredZonesCommissions.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Feather name="truck" size={20} color={COLOR.green} />
@@ -152,7 +374,7 @@ export default function Commission({
                   : 'Comisiones configuradas para zonas de entrega'}
               </Text>
 
-              {deliveryZones.map((zone) => (
+              {filteredZonesCommissions.map((zone) => (
                 <View key={zone.id} style={styles.itemCard}>
                   <Text style={styles.itemName}>{zone.name}</Text>
 
@@ -188,7 +410,7 @@ export default function Commission({
                             styles.binaryOption, zone.selectedOption === 'commission' && styles.binaryOptionSelected,
                           ]}
                           onPress={() =>
-                            handleOptionSelect(zone.id, 'delivery', 'commission',)
+                            handleOptionSelect(zone.id, 'delivery', 'commission')
                           }
                         >
                           <Feather
@@ -251,7 +473,8 @@ export default function Commission({
             </View>
           )}
 
-          {pickupPoints.length > 0 && (
+          {/* Centros de entrega - Solo si deliveryCentersEnabled esta Activo */}
+          {filteredPointsCommissions.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Feather name="map-pin" size={20} color={COLOR.green} />
@@ -263,7 +486,7 @@ export default function Commission({
                   : 'Comisiones configuradas para centros de entrega'}
               </Text>
 
-              {pickupPoints.map((point) => (
+              {filteredPointsCommissions.map((point) => (
                 <View key={point.id} style={styles.itemCard}>
                   <Text style={styles.itemName}>{point.address}</Text>
 
@@ -362,14 +585,17 @@ export default function Commission({
             </View>
           )}
 
-          {deliveryZones.length === 0 && pickupPoints.length === 0 && (
+          {/* Estado vacío - cuando no hay comisiones visibles */}
+          {noVisibleCommissions && (
             <View style={styles.emptyState}>
               <Feather name="settings" size={48} color="#D1D5DB" />
               <Text style={styles.emptyStateTitle}>
-                Sin configuraciones de comisión
+                {localZones?.length > 0 || localPoints?.length > 0 ? 'Comisiones no disponibles' : 'Sin configuraciones de comisión'}
               </Text>
               <Text style={styles.emptyStateText}>
-                No hay zonas de entrega o puntos de recogida configurados.
+                {localZones?.length > 0 || localPoints?.length > 0
+                  ? 'Activa los métodos de entrega correspondientes en la sección de Cobertura para ver y configurar las comisiones.'
+                  : 'No hay zonas de entrega o puntos de recogida configurados.'}
               </Text>
             </View>
           )}
@@ -384,9 +610,11 @@ export default function Commission({
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[
+                  styles.saveButton, !hasChanges && styles.saveButtonDisabled,
+                ]}
                 onPress={handleSave}
-                disabled={loading}
+                disabled={loading || !hasChanges}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -400,6 +628,15 @@ export default function Commission({
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      <CommissionModal
+        visible={internalModal.visible}
+        title={internalModal.title}
+        message={internalModal.message}
+        type={internalModal.type}
+        onConfirm={internalModal.onConfirm}
+        onCancel={internalModal.onCancel}
+      />
     </View>
   );
 }
@@ -412,14 +649,28 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+  },
+  headerTitleContainer: {
+    flex: 1,
   },
   title: {
     fontSize: 18,
     fontFamily: 'Poppins-SemiBold',
     color: '#000',
     flex: 1,
+  },
+  syncStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  syncText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'Poppins-Regular',
   },
   scrollView: {
     flex: 1,
@@ -577,9 +828,128 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
+  saveButtonDisabled: {
+    backgroundColor: '#A7F3D0',
+  },
   saveButtonText: {
     color: '#fff',
     fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
+  },
+  warningBox: {
+    backgroundColor: '#FEF3CD',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  warningText: {
+    color: '#92400E',
+    fontSize: 14,
+    flex: 1,
+    fontFamily: 'Poppins-Regular',
+    lineHeight: 18,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '60%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalIconSuccess: {
+    backgroundColor: '#10B981',
+  },
+  modalIconError: {
+    backgroundColor: '#EF4444',
+  },
+  modalIconInfo: {
+    backgroundColor: '#3B82F6',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+    width: '100%',
+  },
+  modalMessage: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    width: '100%',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  modalConfirmButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalConfirmButtonSuccess: {
+    backgroundColor: '#10B981',
+  },
+  modalConfirmButtonError: {
+    backgroundColor: '#EF4444',
+  },
+  modalConfirmButtonInfo: {
+    backgroundColor: '#3B82F6',
+  },
+  modalConfirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
   },
 });
