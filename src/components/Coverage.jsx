@@ -67,7 +67,7 @@ const CoverageModal = ({ visible, title, message, type = 'info', onConfirm, onCa
   );
 };
 
-const Coverage = ({ businessId, deliveryOptions, onUpdate, onSwitchChange, onRollback, zonesCommissions = [], pointsCommissions = [], showModal, onItemRemoval, onEditStart, }) => {
+const Coverage = ({ businessId, deliveryOptions, onUpdate, onSwitchChange, onRollback, zonesCommissions = [], pointsCommissions = [], showModal, onItemRemoval, onEditStart, onItemAddition }) => {
   const [editing, setEditing] = useState(false);
   const [tempOptions, setTempOptions] = useState({
     homeDeliveryEnabled: false,
@@ -445,6 +445,24 @@ const Coverage = ({ businessId, deliveryOptions, onUpdate, onSwitchChange, onRol
       ...prev,
       zones: [...prev.zones, zoneWithProperStructure],
     }));
+
+    // ✅ Inicializar comisiones para la nueva zona
+    if (onItemAddition) {
+      const newCommission = {
+        id: numericId,
+        zoneCommissionId: numericId,
+        type: 'delivery',
+        selectedOption: 'free',
+        commissionAmount: '',
+        address: zoneWithProperStructure.address,
+        coordinates: centerDTO,
+        name: zoneWithProperStructure.name,
+        deliveryZoneId: null
+      };
+      console.log('💰 Creando nueva comisión para zona:', newCommission);
+      onItemAddition('zones', newCommission);
+    }
+
     setMapModalVisible(false);
     resetModalState();
   };
@@ -497,6 +515,25 @@ const Coverage = ({ businessId, deliveryOptions, onUpdate, onSwitchChange, onRol
       ...prev,
       points: [...prev.points, pointWithProperStructure],
     }));
+
+    // ✅ Inicializar comisiones para el nuevo punto
+    if (onItemAddition) {
+      const newCommission = {
+        id: numericId,
+        zoneCommissionId: numericId,
+        type: 'pickup',
+        selectedOption: 'free',
+        commissionAmount: '',
+        address: pointWithProperStructure.address,
+        coordinates: centerDTO,
+        name: pointWithProperStructure.name,
+        deliveryZoneId: null
+      };
+
+      console.log('💰 Creando nueva comisión para punto:', newCommission);
+      onItemAddition('points', newCommission);
+    }
+
     setMapModalVisible(false);
     resetModalState();
   };

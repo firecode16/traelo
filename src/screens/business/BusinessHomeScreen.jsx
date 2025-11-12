@@ -555,12 +555,10 @@ export default function BusinessHomeScreen() {
         const invalidPoints = pointsWithCenterDTO.filter((point) => !point.center,);
 
         if (invalidZones.length > 0 || invalidPoints.length > 0) {
-          console.warn('⚠️ Algunas ubicaciones no tienen coordenadas válidas:',
-            {
-              invalidZones: invalidZones.length,
-              invalidPoints: invalidPoints.length,
-            },
-          );
+          console.warn('⚠️ Algunas ubicaciones no tienen coordenadas válidas:', {
+            invalidZones: invalidZones.length,
+            invalidPoints: invalidPoints.length,
+          });
         }
 
         const payload = {
@@ -572,32 +570,140 @@ export default function BusinessHomeScreen() {
           points: pointsWithCenterDTO,
           deletedZones: getDeletedZoneCommissionIds(initialCommissionsState.zones, zonesCommissions,),
           deletedPoints: getDeletedZoneCommissionIds(initialCommissionsState.points, pointsCommissions,),
+          commissions: getZoneCommissions(),
         };
 
-        console.log('📤 Enviando payload con CenterDTO válido:', {
-          ...payload,
-          sampleZone: payload.zones.length > 0 ? payload.zones[0] : 'No zones',
-          samplePoint: payload.points.length > 0 ? payload.points[0] : 'No points',
-        });
+        console.log('📤 Enviando payload...');
 
         await updateDeliveryZoneOptions(businessId, payload);
 
-        console.log('🔄 Recargando datos para actualizar Commission...');
+        console.log('🔄 Recargando datos...');
         await reloadDashboardData();
 
-        showModal('Éxito', 'Cobertura actualizada correctamente', 'success');
+        showModal('Éxito', 'Cobertura y comisiones actualizadas correctamente', 'success');
         setInitialCommissionsState({ zones: [], points: [] });
         return true;
       } catch (error) {
-        console.error('Error guardando cobertura:', error);
+        console.error('❌ Error guardando cobertura:', error);
+
+        // Rollback visual inmediato
         setDeliveryOptions(previousDeliveryOptions);
         setZonesCommissions([...initialCommissionsState.zones]);
         setPointsCommissions([...initialCommissionsState.points]);
-        showModal('Error', 'No se pudo guardar la cobertura', 'error');
+
+        let errorMessage = 'No se pudo guardar la cobertura';
+        if (error.response?.data) {
+          errorMessage += `: ${error.response.data}`;
+        } else if (error.message) {
+          errorMessage += `: ${error.message}`;
+        }
+
+        showModal('Error', errorMessage, 'error');
         return false;
       }
     }
     return true;
+  };
+
+  const getZoneCommissions = () => {
+    console.log('🔄 Consolidando TODAS las comisiones...');
+    console.log('📦 ZonesCommissions:', zonesCommissions);
+    console.log('📦 PointsCommissions:', pointsCommissions);
+
+    const allCommissions = [...zonesCommissions, ...pointsCommissions];
+
+    const formattedCommissions = allCommissions.map((commission, index) => {
+      if (!commission) {
+        console.warn(`⚠️ Comisión ${index} es null/undefined, omitiendo`);
+        return null;
+      }
+
+      // Validar datos mínimos
+      const hasValidAddress = commission.address || commission.name;
+      if (!hasValidAddress) {
+        console.warn(`⚠️ Comisión ${index} no tiene dirección válida, omitiendo`, commission);
+        return null;
+      }
+
+      // Formatear commissionAmount
+      let commissionAmount = null;
+      if (commission.selectedOption === 'commission' && commission.commissionAmount) {
+        const amount = parseFloat(commission.commissionAmount);
+        commissionAmount = isNaN(amount) ? null : amount;
+      }
+
+      // Preparar coordinates de forma robusta
+      let coordinates = commission.coordinates;
+      if (!coordinates) {
+        // Intentar obtener de geometry si está disponible
+        if (commission.geometry?.coordinates) {
+          const [longitude, latitude] = commission.geometry.coordinates;
+          coordinates = { longitude, latitude };
+        } else if (commission.center) {
+          coordinates = { 
+            longitude: commission.center.longitude, 
+            latitude: commission.center.latitude 
+          };
+        }
+      }
+
+      if (coordinates && typeof coordinates === 'string') {
+        try {
+          coordinates = JSON.parse(coordinates);
+        } catch (error) {
+          console.warn('⚠️ Error parseando coordinates:', error);
+          coordinates = {};
+        }
+      }
+
+      const formattedCommission = {
+        businessAuxId: Number(businessId),
+        zoneCommissionId: commission.zoneCommissionId || commission.id,
+        shippingType: commission.type === 'delivery' ? 'DELIVERY' : 'PICKUP',
+        selectedOption: commission.selectedOption || 'free',
+        commissionAmount: commissionAmount,
+        address: commission.address || commission.name || '',
+        coordinates: coordinates || {},
+        isActive: true,
+        deliveryZoneId: commission.deliveryZoneId || null,
+      };
+
+      console.log(`✅ Comisión ${index} formateada:`, formattedCommission);
+      return formattedCommission;
+    }).filter(commission => commission !== null); // Filtrar nulos
+
+    console.log(`✅ ${formattedCommissions.length} comisiones consolidadas`);
+    return formattedCommissions;
+  };
+
+  const handleItemAddition = (type, newCommission) => {
+    console.log(`➕ Agregando nueva comisión ${type}:`, newCommission);
+
+    if (type === 'zones') {
+      setZonesCommissions(prev => {
+        // Evitar duplicados
+        const exists = prev.some(zone => zone.id === newCommission.id);
+        if (exists) {
+          console.warn('⚠️ Zona ya existe, no se agrega:', newCommission);
+          return prev;
+        }
+        const updated = [...prev, newCommission];
+        console.log('✅ Zona agregada. Total zonas ahora:', updated.length);
+        return updated;
+      });
+    } else if (type === 'points') {
+      setPointsCommissions(prev => {
+        // Evitar duplicados
+        const exists = prev.some(point => point.id === newCommission.id);
+        if (exists) {
+          console.warn('⚠️ Punto ya existe, no se agrega:', newCommission);
+          return prev;
+        }
+        const updated = [...prev, newCommission];
+        console.log('✅ Punto agregado. Total puntos ahora:', updated.length);
+        return updated;
+      });
+    }
   };
 
   // Manejador para cambios en switches (actualización inmediata)
@@ -701,6 +807,7 @@ export default function BusinessHomeScreen() {
               showModal={showModal}
               onItemRemoval={handleImmediateItemRemoval}
               onEditStart={handleCoverageEdit}
+              onItemAddition={handleItemAddition}
             />
 
             {/* Card 3: Commission */}
