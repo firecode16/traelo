@@ -121,3 +121,29 @@ export const getDashboardByBusinessId = async (businessId) => {
     throw error;
   }
 };
+
+export const updatePaymentMethods = async (paymentData) => {
+  try {
+    const response = await fetch(API.BUSINESS.UPDATE_PAYMENT_METHODS, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(paymentData),
+    });
+
+    if (!response.ok) {
+      throw new Error('❌ Error al actualizar los métodos de pago');
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && contentLength !== '0') {
+      return await response.json();
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Error updating payment method:', error);
+    throw error;
+  }
+};

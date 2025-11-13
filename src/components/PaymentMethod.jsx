@@ -10,12 +10,10 @@ import {
   ActivityIndicator,
   Modal,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
-import { COLOR } from '../constants/Color';
+import { updatePaymentMethods } from '../services/BusinessService';
 
 const PaymentMethod = ({ business, businessId, onUpdate }) => {
   const [editing, setEditing] = useState(false);
@@ -41,10 +39,8 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
   const [originalTransfer, setOriginalTransfer] = useState(transferEnabled);
   const [originalBankAccount, setOriginalBankAccount] = useState(bankAccount);
   const [originalClabe, setOriginalClabe] = useState(clabe);
-  const [originalAccountHolder, setOriginalAccountHolder] =
-    useState(accountHolder);
+  const [originalAccountHolder, setOriginalAccountHolder] = useState(accountHolder);
 
-  // Validaciones
   const validateClabe = (clabe) => {
     return /^\d{18}$/.test(clabe);
   };
@@ -53,7 +49,6 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
     return account === '' || /^\d{16}$/.test(account);
   };
 
-  // Función para mostrar modales personalizados
   const showModal = (title, message, type = 'info') => {
     setModalTitle(title);
     setModalMessage(message);
@@ -76,53 +71,43 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
   };
 
   const handleSave = async () => {
-    // Cerrar teclado antes de validar
     Keyboard.dismiss();
 
-    // Validaciones
     if (transferEnabled) {
       if (!clabe) {
-        showModal(
-          'CLABE requerida',
-          'La CLABE interbancaria es requerida cuando la transferencia está activada.',
-          'error',
-        );
+        showModal('CLABE requerida', 'La CLABE interbancaria es requerida cuando la transferencia está activada.', 'error');
         return;
       }
 
       if (!validateClabe(clabe)) {
-        showModal(
-          'CLABE inválida',
-          'La CLABE interbancaria debe tener exactamente 18 dígitos.',
-          'error',
-        );
+        showModal('CLABE inválida', 'La CLABE interbancaria debe tener exactamente 18 dígitos.', 'error');
         return;
       }
 
       if (!validateBankAccount(bankAccount)) {
-        showModal(
-          'Tarjeta inválida',
-          'El número de tarjeta debe tener exactamente 16 dígitos.',
-          'error',
-        );
+        showModal('Tarjeta inválida', 'El número de tarjeta debe tener exactamente 16 dígitos.', 'error');
         return;
       }
     }
 
     setLoading(true);
     try {
-      // Aquí iría la llamada a la API para guardar métodos de pago
-      // await updatePaymentMethods(businessId, paymentData);
-
-      const updatedData = {
+      const paymentData = {
+        businessId: Number(businessId),
         acceptCash: cashEnabled,
         acceptTransfer: transferEnabled,
         bankCard: bankAccount,
         bankClabe: clabe,
-        accountHolder: accountHolder,
+        updatedAt: new Date().toISOString(),
       };
 
-      onUpdate?.(updatedData);
+      console.log('🔄 Actualizando métodos de pago:', paymentData);
+      await updatePaymentMethods(paymentData);
+      console.log('✅ Métodos de pago actualizados.');
+
+      // Notificar al componente padre
+      await onUpdate?.(paymentData);
+
       setEditing(false);
       showModal('Éxito', 'Métodos de pago actualizados correctamente', 'info');
     } catch (error) {
@@ -133,7 +118,6 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
   };
 
   const handleCancel = () => {
-    // Cerrar teclado antes de cancelar
     Keyboard.dismiss();
     // Restaurar valores originales
     setCashEnabled(originalCash);
@@ -151,8 +135,8 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
   }, []);
 
   const handleTransferToggle = useCallback((value) => {
-    Keyboard.dismiss(); // Cerrar teclado antes del cambio
-    // Pequeño delay para evitar conflicto con animaciones del teclado
+    Keyboard.dismiss();
+    // Delay para evitar conflicto con animaciones del teclado
     setTimeout(() => {
       setTransferEnabled(value);
     }, 50);
@@ -196,8 +180,7 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
                       />
                       <Text
                         style={[
-                          styles.paymentMethodText,
-                          { color: cashEnabled ? '#2E7D32' : '#9CA3AF' },
+                          styles.paymentMethodText, { color: cashEnabled ? '#2E7D32' : '#9CA3AF' },
                         ]}
                       >
                         Efectivo {cashEnabled ? '(Activo)' : '(Inactivo)'}
@@ -212,8 +195,7 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
                       />
                       <Text
                         style={[
-                          styles.paymentMethodText,
-                          { color: transferEnabled ? '#2E7D32' : '#9CA3AF' },
+                          styles.paymentMethodText, { color: transferEnabled ? '#2E7D32' : '#9CA3AF' },
                         ]}
                       >
                         Transferencia{' '}
@@ -234,11 +216,6 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
                         {bankAccount && (
                           <Text style={styles.bankInfoText}>
                             Tarjeta: {bankAccount}
-                          </Text>
-                        )}
-                        {accountHolder && (
-                          <Text style={styles.bankInfoText}>
-                            Titular: {accountHolder}
                           </Text>
                         )}
                       </View>
@@ -293,7 +270,7 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
                         </Text>
                         <TextInput
                           style={[
-                            styles.input, clabe && !validateClabe(clabe) && styles.inputError,
+                            styles.input, clabe && !validateClabe(clabe) && styles.inputError
                           ]}
                           value={clabe}
                           onChangeText={setClabe}
@@ -316,7 +293,7 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
                         </Text>
                         <TextInput
                           style={[
-                            styles.input, bankAccount && !validateBankAccount(bankAccount) && styles.inputError,
+                            styles.input, bankAccount && !validateBankAccount(bankAccount) && styles.inputError
                           ]}
                           value={bankAccount}
                           onChangeText={setBankAccount}
@@ -331,21 +308,6 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
                             El número de tarjeta debe tener 16 dígitos
                           </Text>
                         )}
-                      </View>
-
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>
-                          Nombre del titular
-                        </Text>
-                        <TextInput
-                          style={styles.input}
-                          value={accountHolder}
-                          onChangeText={setAccountHolder}
-                          placeholder="Nombre completo del titular"
-                          placeholderTextColor="#9CA3AF"
-                          returnKeyType="done"
-                          onSubmitEditing={Keyboard.dismiss}
-                        />
                       </View>
                     </View>
                   )}
@@ -383,7 +345,7 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
         </ScrollView>
       </View>
 
-      {/* Modal personalizado para mensajes */}
+      {/* Modal para mensajes */}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -395,7 +357,7 @@ const PaymentMethod = ({ business, businessId, onUpdate }) => {
             <View
               style={[
                 styles.modalIconContainer,
-                modalType === 'error' ? styles.modalIconError : styles.modalIconInfo,
+                modalType === 'error' ? styles.modalIconError : styles.modalIconInfo
               ]}
             >
               <Feather
@@ -589,7 +551,7 @@ const styles = StyleSheet.create({
   keyboardSpacer: {
     height: 230,
   },
-  // Estilos para el modal personalizado
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

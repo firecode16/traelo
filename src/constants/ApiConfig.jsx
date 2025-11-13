@@ -19,6 +19,7 @@ export const API = {
     GET_BUSINESS_LOGO_BY_ID: (businessId) => `${BASE_URL}/business/getLogo/${businessId}`,
     GET_ALL: `${BASE_URL}/business/getAll`,
     GET_DASHBOARD: (businessId) => `${BASE_URL}/business/${businessId}/dashboard`,
+    UPDATE_PAYMENT_METHODS: `${BASE_URL}/business/updatePaymentMethods`,
   },
   MENU: {
     CREATE: `${BASE_URL}/menu/create`,
