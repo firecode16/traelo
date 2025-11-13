@@ -416,7 +416,7 @@ export default function BusinessHomeScreen() {
         name: item.address,
         type: item.shippingType === 'DELIVERY' ? 'delivery' : 'pickup',
         selectedOption: item.selectedOption || 'free',
-        commissionAmount: item.commissionAmount?.toString() || '',
+        commissionAmount: item.commissionAmount ? String(item.commissionAmount) : '',
         coordinates: item.coordinates ? typeof item.coordinates === 'string' ? JSON.parse(item.coordinates) : item.coordinates : {},
         address: item.address,
         // ZoneCommissionId real para las eliminaciones
@@ -679,6 +679,8 @@ export default function BusinessHomeScreen() {
   const handleItemAddition = (type, newCommission) => {
     console.log(`➕ Agregando nueva comisión ${type}:`, newCommission);
 
+    const commissionWithStringAmount = {...newCommission, commissionAmount: String(newCommission.commissionAmount || '')};
+
     if (type === 'zones') {
       setZonesCommissions(prev => {
         // Evitar duplicados
@@ -687,7 +689,7 @@ export default function BusinessHomeScreen() {
           console.warn('⚠️ Zona ya existe, no se agrega:', newCommission);
           return prev;
         }
-        const updated = [...prev, newCommission];
+        const updated = [...prev, commissionWithStringAmount];
         console.log('✅ Zona agregada. Total zonas ahora:', updated.length);
         return updated;
       });
@@ -699,7 +701,7 @@ export default function BusinessHomeScreen() {
           console.warn('⚠️ Punto ya existe, no se agrega:', newCommission);
           return prev;
         }
-        const updated = [...prev, newCommission];
+        const updated = [...prev, commissionWithStringAmount];
         console.log('✅ Punto agregado. Total puntos ahora:', updated.length);
         return updated;
       });

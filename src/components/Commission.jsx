@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLOR } from '../constants/Color';
+import { updateZoneCommissionOptions } from '../services/ZoneCommissionService';
 
 const CommissionModal = ({ visible, title, message, type = 'info', onConfirm, onCancel, confirmText = 'Aceptar', cancelText = 'Cancelar', }) => {
   return (
@@ -186,21 +187,62 @@ export default function Commission({ zonesCommissions, pointsCommissions, onZone
     }
 
     setLoading(true);
+
     try {
+      const commissionPayload = [];
+
+      allCommissions.forEach((commission) => {
+        let commissionAmountValue = 0;
+
+        if (commission.selectedOption === 'commission' && commission.commissionAmount) {
+          const amount = parseFloat(commission.commissionAmount);
+          commissionAmountValue = isNaN(amount) ? 0 : amount;
+        }
+
+        const zoneCommissionId = commission.zoneCommissionId || commission.id;
+
+        if (!zoneCommissionId) {
+          console.warn('⚠️ Comisión sin zoneCommissionId válido:', commission);
+          return;
+        }
+
+        const commissionUpdate = {
+          businessAuxId: Number(businessId),
+          zoneCommissionId: zoneCommissionId,
+          selectedOption: commission.selectedOption,
+          commissionAmount: commissionAmountValue,
+          updatedAt: new Date(),
+        };
+
+        commissionPayload.push(commissionUpdate);
+        console.log(`✅ Comisión preparada:`, commissionUpdate);
+      });
+
+      console.log('📤 Enviando payload completo de comisiones:', {
+        totalCommissions: commissionPayload.length,
+        payload: commissionPayload,
+      });
+
+      if (commissionPayload.length > 0) {
+        await updateZoneCommissionOptions(commissionPayload);
+
+        console.log('✅ Comisiones actualizadas correctamente en el backend');
+      } else {
+        console.warn('⚠️ No hay comisiones para actualizar');
+      }
+
+      // Actualizar estado local y notificar cambios al padre
       if (onUpdate) {
         await onUpdate(localZones, localPoints);
       }
 
       setEditing(false);
       setHasChanges(false);
+
       if (showModal) {
         showModal('Éxito', 'Comisiones actualizadas correctamente', 'success');
       } else {
-        showInternalModal(
-          'Éxito',
-          'Comisiones actualizadas correctamente',
-          'success',
-        );
+        showInternalModal('Éxito', 'Comisiones actualizadas correctamente', 'success');
       }
     } catch (error) {
       if (showModal) {
@@ -223,6 +265,7 @@ export default function Commission({ zonesCommissions, pointsCommissions, onZone
           // Make rollback
           setLocalZones([...originalZones]);
           setLocalPoints([...originalPoints]);
+
           if (onZonesCommissionsChange)
             onZonesCommissionsChange([...originalZones]);
           if (onPointsCommissionsChange)
@@ -264,11 +307,20 @@ export default function Commission({ zonesCommissions, pointsCommissions, onZone
   const handleCommissionChange = (id, type, value) => {
     if (!editing) return;
 
+    // Permitir solo números y un punto decimal
     const numericValue = value.replace(/[^0-9.]/g, '');
+
+    // Validar que no haya más de un punto decimal
+    const parts = numericValue.split('.');
+    const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
+
+    // Limitar a 2 decimales
+    const decimalParts = finalValue.split('.');
+    const formattedValue = decimalParts.length > 1 ? decimalParts[0] + '.' + decimalParts[1].slice(0, 2) : finalValue;
 
     const updater = (list) =>
       list.map((item) =>
-        item.id === id ? { ...item, commissionAmount: numericValue } : item,
+        item.id === id ? { ...item, commissionAmount: formattedValue } : item,
       );
 
     if (type === 'delivery') {
@@ -298,9 +350,7 @@ export default function Commission({ zonesCommissions, pointsCommissions, onZone
       filteredPointsCommissions.length === 0);
 
   // Detectar si no hay comisiones visibles
-  const noVisibleCommissions =
-    filteredZonesCommissions.length === 0 &&
-    filteredPointsCommissions.length === 0;
+  const noVisibleCommissions = filteredZonesCommissions.length === 0 && filteredPointsCommissions.length === 0;
 
   // Renderizar estado de sincronización
   const renderSyncStatus = () => {
@@ -440,7 +490,7 @@ export default function Commission({ zonesCommissions, pointsCommissions, onZone
                             placeholder="Ej: 50.00"
                             placeholderTextColor="#9CA3AF"
                             keyboardType="numeric"
-                            value={zone.commissionAmount}
+                            value={String(zone.commissionAmount || '')}
                             onChangeText={(v) =>
                               handleCommissionChange(zone.id, 'delivery', v)
                             }
@@ -552,7 +602,7 @@ export default function Commission({ zonesCommissions, pointsCommissions, onZone
                             placeholder="Ej: 30.00"
                             placeholderTextColor="#9CA3AF"
                             keyboardType="numeric"
-                            value={point.commissionAmount}
+                            value={String(point.commissionAmount || '')}
                             onChangeText={(v) =>
                               handleCommissionChange(point.id, 'pickup', v)
                             }

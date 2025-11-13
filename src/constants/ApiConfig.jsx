@@ -49,5 +49,6 @@ export const API = {
     CREATE_BATCH: `${BASE_URL}/zone-commissions/batch`,
     CREATE: `${BASE_URL}/zone-commissions/create`,
     GET_BY_BUSINESS: (businessId) => `${BASE_URL}/zone-commissions/getZoneCommissionByBusiness/${businessId}`,
+    UPDATE_ZONE_COMMISSION_OPTIONS: `${BASE_URL}/zone-commissions/update-options`,
   },
 };

@@ -66,3 +66,21 @@ export const getCommissionsByBusiness = async (businessId) => {
     throw error;
   }
 };
+
+export const updateZoneCommissionOptions = async (commissionPayload) => {
+  try {
+    const url = API.COMMISSIONS.UPDATE_ZONE_COMMISSION_OPTIONS;
+
+    const response = await axios.put(url, commissionPayload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error updating zone commission options:', error);
+    throw error;
+  }
+};
