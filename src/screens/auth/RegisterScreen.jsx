@@ -20,7 +20,6 @@ import { registerUser } from '../../services/RegisterService';
 import MapboxPicker from '../../components/MapboxPicker';
 import { MAP } from '../../constants/ApiMaps';
 
-// Alternativa más segura
 const getSafeSearchTypes = () => {
   // Tipos válidos según documentación de Mapbox
   return 'place,locality,neighborhood,address,district,poi,region';
@@ -350,8 +349,8 @@ const RegisterScreen = ({ navigation }) => {
                     <Picker.Item label="Alimentos y Bebidas" value="food" />
                     <Picker.Item label="Electrónica y Tecnología" value="technology" />
                     <Picker.Item label="Moda y Calzado" value="fashion" />
-                    <Picker.Item label="Ferreteria" value="hardware" />
-                    <Picker.Item label="Farmacia" value="pharmacy" />
+                    {/*<Picker.Item label="Ferreteria" value="hardware" />
+                    <Picker.Item label="Farmacia" value="pharmacy" />*/}
                   </Picker>
                   <Ionicons
                     name="chevron-down"

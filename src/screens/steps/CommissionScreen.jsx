@@ -40,7 +40,7 @@ export default function CommissionScreen({ navigation, route }) {
   // Estados para comisiones
   const [zonesCommissions, setZonesCommissions] = useState(
     transformCoordinates(deliveryOptions?.zones).map((zone) => ({
-      id: zone.id || Date.now().toString() + Math.random(),
+      id: zone.id,
       name: zone.place_name || zone.name || 'Zona sin nombre',
       type: 'delivery',
       selectedOption: 'free',
@@ -119,9 +119,7 @@ export default function CommissionScreen({ navigation, route }) {
     }
 
     const allCommissions = [...zonesCommissions, ...pointsCommissions];
-    const invalidCommissions = allCommissions.filter(
-      (item) => item.selectedOption === 'commission' && !item.commissionAmount,
-    );
+    const invalidCommissions = allCommissions.filter((item) => item.selectedOption === 'commission' && !item.commissionAmount);
 
     if (invalidCommissions.length > 0) {
       showModalFn('Comisiones incompletas', 'Algunas zonas o puntos tienen comisión seleccionada pero no tienen monto asignado. Por favor, completa la información.',);
@@ -254,7 +252,8 @@ export default function CommissionScreen({ navigation, route }) {
         selectedOption: commission.selectedOption,
         commissionAmount: commission.commissionAmount || null,
         address: commission.address || commission.name || '',
-        coordinates: JSON.stringify(commission.coordinates || {}),
+        coordinates: formattedCoordinates(commission),
+        active: true,
         deliveryZoneId: savedZone.deliveryZoneId,
         businessAuxId: businessId,
         createdAt: new Date().toISOString(),
@@ -271,6 +270,35 @@ export default function CommissionScreen({ navigation, route }) {
       setLoading(false);
       showModalFn('Error', error.message || 'Ocurrió un error en el registro.');
     }
+  };
+
+  const formattedCoordinates = (commission) => {
+    // Preparar coordinates de forma robusta
+    let coordinates = commission.coordinates || {};
+
+    if (!coordinates) {
+      // Intentar obtener de geometry si está disponible
+      if (commission.geometry?.coordinates) {
+        const [longitude, latitude] = commission.geometry.coordinates;
+        coordinates = { longitude, latitude };
+      } else if (commission.center) {
+        coordinates = {
+          longitude: commission.center.longitude || commission.center.lng || 0,
+          latitude: commission.center.latitude || commission.center.lat || 0,
+        };
+      }
+    }
+
+    if (coordinates && typeof coordinates === 'string') {
+      try {
+        coordinates = JSON.parse(coordinates);
+      } catch (error) {
+        console.warn('⚠️ Error parsing coordinates string:', error);
+        coordinates = {};
+      }
+    }
+
+    return coordinates;
   };
 
   return (
