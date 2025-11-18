@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import BusinessHomeScreen from '../screens/business/BusinessHomeScreen';
 import BusinessOrdersScreen from '../screens/business/BusinessOrdersScreen';
-import BusinessMenuScreen from '../screens/business/BusinessMenuScreen';
 import BusinessScheduleScreen from '../screens/business/BusinessScheduleScreen';
 import BusinessProfileScreen from '../screens/business/BusinessProfileScreen';
+import SectorOrchestrator from '../orchestrator/SectorOrchestrator';
 import { COLOR } from '../constants/Color';
 import { getSectorByBusinessId } from '../services/SectorService';
 
@@ -17,11 +17,14 @@ const Tab = createBottomTabNavigator();
 const BusinessTabsNavigation = () => {
   const [productTabName, setProductTabName] = useState('Menú');
   const [sectorData, setSectorData] = useState(null);
+  const [sectorLoading, setSectorLoading] = useState(true);
 
   useEffect(() => {
     const fetchSectorData = async () => {
       try {
+        setSectorLoading(true);
         const stored = await AsyncStorage.getItem('userInfo');
+
         if (stored) {
           const user = JSON.parse(stored);
           const businessId = user.businessId;
@@ -31,7 +34,6 @@ const BusinessTabsNavigation = () => {
             setSectorData(sectorInfo);
             console.log('Sector Info:', sectorInfo);
 
-            // Determinar el nombre de la pestaña basado en displayNameProductTab
             if (sectorInfo && sectorInfo.displayNameProductTab) {
               setProductTabName(sectorInfo.displayNameProductTab);
             }
@@ -39,11 +41,22 @@ const BusinessTabsNavigation = () => {
         }
       } catch (error) {
         console.error('Error fetching sector data:', error);
+      } finally {
+        setSectorLoading(false);
       }
     };
 
     fetchSectorData();
   }, []);
+
+  if (sectorLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLOR.green} />
+        <Text style={styles.loadingText}>Cargando configuración...</Text>
+      </View>
+    );
+  }
 
   const getProductTabIcon = (focused) => {
     if (productTabName === 'Catálogo') {
@@ -91,30 +104,23 @@ const BusinessTabsNavigation = () => {
       <Tab.Screen
         name="Inicio"
         component={BusinessHomeScreen}
-        options={{
-          title: 'Inicio',
-        }}
+        options={{ title: 'Inicio' }}
       />
       <Tab.Screen
         name="Pedidos"
         component={BusinessOrdersScreen}
-        options={{
-          title: 'Pedidos',
-        }}
+        options={{ title: 'Pedidos' }}
       />
       <Tab.Screen
         name="Productos"
-        component={BusinessMenuScreen}
-        options={{
-          title: productTabName, // Nombre dinámico: 'Menú' o 'Catálogo'
-        }}
+        component={SectorOrchestrator}
+        initialParams={{ sector: sectorData }}
+        options={{ title: productTabName }}
       />
       <Tab.Screen
         name="Horarios"
         component={BusinessScheduleScreen}
-        options={{
-          title: 'Horarios',
-        }}
+        options={{ title: 'Horarios' }}
       />
       <Tab.Screen
         name="Perfil"
@@ -142,6 +148,18 @@ const BusinessTabsNavigation = () => {
 };
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#6B7280',
+  },
   header: {
     backgroundColor: '#FFFFFF',
     elevation: 2,

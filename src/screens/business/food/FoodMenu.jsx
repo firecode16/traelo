@@ -16,25 +16,26 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLOR } from '../../constants/Color';
+import { COLOR } from '../../../constants/Color';
 import {
   updateLogoBusinessById,
   generateLogoUri,
-} from '../../services/BusinessService';
+} from '../../../services/BusinessService';
 import {
   getMenusByBusiness,
   createMenu,
   updateMenu,
   deleteMenu,
   getImageByMenuId,
-} from '../../services/MenuService';
+} from '../../../services/MenuService';
 
-import { categories } from '../../data/Categories';
-import { preloadImage } from '../../components/ImageCache';
-import useScrollHandler from '../../components/HandleScroll';
-import { MenuItem } from '../../components/MenuItem';
+import { categories } from '../../../data/Categories';
+import { preloadImage } from '../../../components/ImageCache';
+import useScrollHandler from '../../../components/HandleScroll';
+import { MenuItem } from '../../../components/MenuItem';
 
-const BusinessMenuScreen = () => {
+const FoodMenu = ({ navigation, route }) => {
+  const { sector } = route.params || {};
   const [logoUri, setLogo] = useState(null);
   const [imageUri, setImage] = useState(null);
   const [logoLoaded, setLogoLoaded] = useState(false);
@@ -1062,4 +1063,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BusinessMenuScreen;
+export default FoodMenu;
