@@ -10,13 +10,12 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
-  TouchableHighlight,
+  Animated,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLOR } from '../../../constants/Color';
 import {
   updateLogoBusinessById,
   generateLogoUri,
@@ -34,6 +33,19 @@ import { preloadImage } from '../../../components/ImageCache';
 import useScrollHandler from '../../../components/HandleScroll';
 import { MenuItem } from '../../../components/MenuItem';
 
+// Opciones para el tiempo de preparación
+const preparationTimes = [
+  { label: '🕓 10 min', value: '10' },
+  { label: '🕓 15 min', value: '15' },
+  { label: '🕓 20 min', value: '20' },
+  { label: '🕓 25 min', value: '25' },
+  { label: '🕓 30 min', value: '30' },
+  { label: '🕓 35 min', value: '35' },
+  { label: '🕓 40 min', value: '40' },
+  { label: '🕓 50 min', value: '50' },
+  { label: '🕓 60 min', value: '60' },
+];
+
 const FoodMenu = ({ navigation, route }) => {
   const { sector } = route.params || {};
   const [logoUri, setLogo] = useState(null);
@@ -50,6 +62,10 @@ const FoodMenu = ({ navigation, route }) => {
     description: '',
     price: '',
     category: '',
+    stock: '0',
+    ingredients: '',
+    preparationTime: '',
+    variants: [],
   });
   const [editingMenuId, setEditingMenuId] = useState(null);
   const [businessId, setBusinessId] = useState(null);
@@ -67,6 +83,10 @@ const FoodMenu = ({ navigation, route }) => {
   const [visibleItems, setVisibleItems] = useState(new Set());
   const { handleScroll, isScrolling, cleanup } = useScrollHandler();
 
+  // Animaciones
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(300))[0];
+
   useEffect(() => {
     const loadMenus = async () => {
       const stored = await AsyncStorage.getItem('userInfo');
@@ -82,6 +102,20 @@ const FoodMenu = ({ navigation, route }) => {
       const data = await getMenusByBusiness(id);
       setMenus(data);
       setLoading(false);
+
+      // Animación de entrada
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
     };
 
     loadMenus();
@@ -96,7 +130,6 @@ const FoodMenu = ({ navigation, route }) => {
   useEffect(() => {
     if (!isScrolling && visibleItems.size > 0) {
       const preloadImages = async () => {
-        // Precargar en paralelo
         await Promise.all(
           Array.from(visibleItems).map(async (menuId) => {
             const imageUrl = getImageByMenuId(menuId);
@@ -110,11 +143,10 @@ const FoodMenu = ({ navigation, route }) => {
 
   useEffect(() => {
     return () => {
-      cleanup(); // cleanup on unmount
+      cleanup();
     };
   }, []);
 
-  // Handle scroll to track visible items
   const handleViewableItemsChanged = useCallback(({ viewableItems }) => {
     const newVisibleItems = new Set();
     viewableItems.forEach(({ item }) => {
@@ -123,13 +155,11 @@ const FoodMenu = ({ navigation, route }) => {
     setVisibleItems(newVisibleItems);
   }, []);
 
-  // callback se activa cuando la imagen se carga correctamente
   const handleLogoLoad = () => {
     setLogoLoaded(true);
     setLogoError(false);
   };
 
-  // callback se activa si falla la carga de imagen
   const handleLogoError = () => {
     setLogoLoaded(false);
     setLogoError(true);
@@ -146,10 +176,23 @@ const FoodMenu = ({ navigation, route }) => {
         description: menu.description,
         price: menu.price.toString(),
         category: menu.category || '',
+        stock: menu.stock?.toString() || '0',
+        ingredients: menu.ingredients || '',
+        preparationTime: menu.preparationTime || '',
+        variants: menu.variants || [],
       });
       setEditingMenuId(menu.menuId);
     } else {
-      setForm({ name: '', description: '', price: '', category: '' });
+      setForm({
+        name: '',
+        description: '',
+        price: '',
+        category: '',
+        stock: '0',
+        ingredients: '',
+        preparationTime: '',
+        variants: [],
+      });
       setEditingMenuId(null);
     }
     setModalVisible(true);
@@ -191,8 +234,8 @@ const FoodMenu = ({ navigation, route }) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      base64: false,
-      quality: 1,
+      aspect: [3, 2],
+      quality: 0.8,
     });
 
     if (!result.canceled && result.assets.length > 0) {
@@ -216,8 +259,8 @@ const FoodMenu = ({ navigation, route }) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: true,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        base64: false,
-        quality: 1,
+        aspect: [1, 1],
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets.length > 0) {
@@ -235,20 +278,42 @@ const FoodMenu = ({ navigation, route }) => {
     }
   };
 
+  const addVariant = () => {
+    setForm({
+      ...form,
+      variants: [...form.variants, { name: '', additionalPrice: '0' }],
+    });
+  };
+
+  const removeVariant = (index) => {
+    const newVariants = [...form.variants];
+    newVariants.splice(index, 1);
+    setForm({ ...form, variants: newVariants });
+  };
+
+  const updateVariant = (index, field, value) => {
+    const newVariants = [...form.variants];
+    newVariants[index][field] = value;
+    setForm({ ...form, variants: newVariants });
+  };
+
+  const handleStockChange = (value) => {
+    const numValue = parseInt(value) || 0;
+    if (numValue >= 0) {
+      setForm({ ...form, stock: numValue.toString() });
+    }
+  };
+
   const prepareLogoData = (logoData) => {
     if (!logoData) {
       throw new Error('No se proporcionó el logoUri');
     }
 
-    // Extraer nombre del archivo desde el uri
     const uriParts = logoData.split('/');
     const filename = uriParts[uriParts.length - 1];
-
-    // Extraer la extensión del archivo
     const extensionMatch = /\.(\w+)$/.exec(filename);
     const extension = extensionMatch ? extensionMatch[1].toLowerCase() : null;
 
-    // Determinar el tipo MIME según la extensión
     let mimeType;
     switch (extension) {
       case 'jpg':
@@ -277,13 +342,11 @@ const FoodMenu = ({ navigation, route }) => {
       throw new Error('No se proporcionó la imagen');
     }
 
-    // Obtener extensión desde el nombre o la URI
     const uriParts = imageMeta.uri.split('/');
     const filename = imageMeta.name || uriParts[uriParts.length - 1];
     const extensionMatch = /\.(\w+)$/.exec(filename);
     const extension = extensionMatch ? extensionMatch[1].toLowerCase() : null;
 
-    // Validar extensión
     let mimeType;
     switch (extension) {
       case 'jpg':
@@ -316,8 +379,9 @@ const FoodMenu = ({ navigation, route }) => {
       errors.price = true;
     if (!form.category) errors.category = true;
     if (!imageUri) errors.image = true;
+    if (!form.stock.trim() || parseInt(form.stock) < 0) errors.stock = true;
 
-    setInvalidFields(errors); // 🔴 actualiza los errores visuales
+    setInvalidFields(errors);
 
     if (Object.keys(errors).length > 0) {
       showErrorModal('Por favor completa todos los campos requeridos.');
@@ -327,12 +391,10 @@ const FoodMenu = ({ navigation, route }) => {
     setLoading(true);
     try {
       if (isNewLogoSelected) {
-        // ✅ Solo si pasa la validación, se actualiza el logo
         const logoFormData = prepareLogoData(logoUri);
         await updateLogoBusinessById(businessId, logoFormData);
       }
 
-      // Lógica para guardar el menú (crear o actualizar)
       const formData = new FormData();
 
       formData.append('menuId', editingMenuId || Date.now());
@@ -341,11 +403,14 @@ const FoodMenu = ({ navigation, route }) => {
       formData.append('description', form.description);
       formData.append('price', form.price);
       formData.append('category', form.category);
+      formData.append('stock', form.stock);
+      formData.append('ingredients', form.ingredients);
+      formData.append('preparationTime', form.preparationTime);
+      formData.append('variants', JSON.stringify(form.variants));
 
       const imageFormData = prepareImageData(imageMeta);
       formData.append('imagen', imageFormData.get('imagen'));
 
-      // Crear o actualizar según el caso
       if (editingMenuId) {
         console.info('Actualizando menú con ID:', editingMenuId);
         await updateMenu(editingMenuId, formData);
@@ -358,11 +423,11 @@ const FoodMenu = ({ navigation, route }) => {
       setMenus(updatedMenus);
       setModalVisible(false);
       resetForm();
-      setIsNewLogoSelected(false); // Reiniciar el estado del logo
-      showSuccessModal('Menú guardado correctamente.');
+      setIsNewLogoSelected(false);
+      showSuccessModal('Producto guardado correctamente.');
     } catch (error) {
       console.error('Error al guardar menú:', error);
-      showErrorModal('No se pudo guardar el menú. Inténtalo de nuevo.');
+      showErrorModal('No se pudo guardar el producto. Inténtalo de nuevo.');
       return;
     } finally {
       setLoading(false);
@@ -383,10 +448,10 @@ const FoodMenu = ({ navigation, route }) => {
       const updatedMenus = await getMenusByBusiness(businessId);
       setMenus(updatedMenus);
       setDeleteConfirmModalVisible(false);
-      showSuccessModal('Menú eliminado correctamente.');
+      showSuccessModal('Producto eliminado correctamente.');
     } catch (error) {
       console.error('Error al eliminar menú:', error);
-      showErrorModal('No se pudo eliminar el menú. Inténtalo de nuevo.');
+      showErrorModal('No se pudo eliminar el producto. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
       setMenuToDelete(null);
@@ -399,13 +464,16 @@ const FoodMenu = ({ navigation, route }) => {
       description: '',
       price: '',
       category: '',
+      stock: '0',
+      ingredients: '',
+      preparationTime: '',
+      variants: [],
     });
     setImage(null);
     setEditingMenuId(null);
     setInvalidFields({});
   };
 
-  // Optimized renderItem
   const renderItem = useCallback(
     ({ item }) => (
       <MenuItem
@@ -422,51 +490,70 @@ const FoodMenu = ({ navigation, route }) => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLOR.orange} />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={pickLogo} style={styles.logoWrapper}>
-        {logoUri && !logoError ? (
-          <View style={{ position: 'relative' }}>
-            <Image
-              source={{ uri: logoUri }}
-              style={styles.logo}
-              onLoad={handleLogoLoad}
-              onError={handleLogoError}
-            />
-            {!logoLoaded && (
-              <ActivityIndicator
-                size="large"
-                color={COLOR.orange}
-                style={styles.logoSpinner}
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      {/* Header con Logo */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={pickLogo} style={styles.logoWrapper}>
+          {logoUri && !logoError ? (
+            <View style={styles.logoContainer}>
+              <Image
+                source={{ uri: logoUri }}
+                style={styles.logo}
+                onLoad={handleLogoLoad}
+                onError={handleLogoError}
               />
-            )}
-          </View>
-        ) : (
-          <View style={styles.logoPlaceholder}>
-            <Ionicons name="image-outline" size={48} color="#ccc" />
-            <Text style={styles.logoText}>Seleccionar logo del negocio</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+              {!logoLoaded && (
+                <ActivityIndicator
+                  size="large"
+                  color={COLORS.primary}
+                  style={styles.logoSpinner}
+                />
+              )}
+              <View style={styles.logoOverlay}>
+                <Ionicons name="camera-outline" size={20} color={COLORS.white} />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.logoPlaceholder}>
+              <Ionicons name="restaurant-outline" size={32} color={COLORS.gray} />
+              <Text style={styles.logoText}>Logo del negocio</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
+        <Text style={styles.changeLogoText}>Toca para cambiar logo</Text>
+      </View>
+
+      {/* Botón Principal */}
       <TouchableOpacity
-        style={[styles.addButton, !logoLoaded && { backgroundColor: '#ccc' }]}
+        style={[styles.addButton, !logoLoaded && styles.addButtonDisabled]}
         onPress={() => openModal()}
         disabled={!logoLoaded}
       >
-        <Text style={styles.addButtonText}>+ Nuevo menú</Text>
+        <Ionicons name="add-circle" size={24} color={COLORS.white} />
+        <Text style={styles.addButtonText}>Nuevo producto</Text>
       </TouchableOpacity>
 
+      {/* Lista de Productos */}
       <FlatList
         data={menus}
         keyExtractor={(item) => item.menuId.toString()}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={styles.listContent}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onViewableItemsChanged={handleViewableItemsChanged}
@@ -478,119 +565,283 @@ const FoodMenu = ({ navigation, route }) => {
         windowSize={5}
         removeClippedSubviews={true}
         initialNumToRender={10}
+        showsVerticalScrollIndicator={false}
       />
 
+      {/* Modal de Agregar/Editar Producto */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>
-                {editingMenuId ? 'Editar Menú' : 'Agregar producto'}
-              </Text>
-
-              <TextInput
-                placeholder="Nombre del producto"
-                placeholderTextColor="#9e9e9eff"
-                value={form.name}
-                onChangeText={(text) => setForm({ ...form, name: text })}
-                style={[
-                  [styles.input, { color: '#000' }],
-                  invalidFields.name && styles.invalidInput,
-                ]}
-              />
-              <TextInput
-                placeholder="Descripción"
-                placeholderTextColor="#9e9e9eff"
-                value={form.description}
-                onChangeText={(text) => setForm({ ...form, description: text })}
-                style={[
-                  [styles.input, { color: '#000' }],
-                  invalidFields.name && styles.invalidInput,
-                ]}
-              />
-              <TextInput
-                placeholder="Precio"
-                placeholderTextColor="#9e9e9eff"
-                keyboardType="numeric"
-                value={form.price}
-                onChangeText={(text) => setForm({ ...form, price: text })}
-                style={[
-                  [styles.input, { color: '#000' }],
-                  invalidFields.name && styles.invalidInput,
-                ]}
-              />
-
-              <Text style={styles.label}>Categoría:</Text>
-              <View
-                style={[
-                  styles.pickerContainer,
-                  invalidFields.category && styles.invalidInput,
-                ]}
-              >
-                <Picker
-                  selectedValue={form.category}
-                  onValueChange={(value) =>
-                    setForm({ ...form, category: value })
-                  }
-                  style={styles.picker}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editingMenuId ? 'Editar Producto' : 'Nuevo Producto'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalVisible(false);
+                    resetForm();
+                  }}
+                  style={styles.closeButton}
                 >
-                  <Picker.Item
-                    label="Selecciona una categoría..."
-                    value=""
-                    style={{ color: '#b8b8b8ff' }}
-                    enabled={false}
-                  />
-                  {categories.map((item) => (
-                    <Picker.Item
-                      key={item.value}
-                      label={item.label}
-                      value={item.value}
-                    />
-                  ))}
-                </Picker>
-                <Ionicons
-                  name="chevron-down"
-                  size={20}
-                  color="#555"
-                  style={styles.pickerIcon}
-                />
+                  <Ionicons name="close" size={24} color={COLORS.gray} />
+                </TouchableOpacity>
               </View>
 
-              {/* Picker de imagen */}
-              <TouchableOpacity
-                onPress={pickImage}
-                style={[
-                  styles.imagePicker,
-                  invalidFields.image && styles.invalidInput,
-                ]}
-              >
-                {imageUri ? (
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={styles.imagePreview}
-                  />
-                ) : (
-                  <View style={styles.placeholder}>
-                    <Ionicons name="image-outline" size={48} color="#ccc" />
-                    <Text style={styles.placeholderText}>
-                      Seleccionar imagen del producto
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              {/* Campos Principales */}
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>Información Básica</Text>
 
-              {/* botones */}
+                <TextInput
+                  placeholder="Nombre del producto *"
+                  placeholderTextColor={COLORS.placeholder}
+                  value={form.name}
+                  onChangeText={(text) => setForm({ ...form, name: text })}
+                  style={[
+                    styles.input,
+                    invalidFields.name && styles.invalidInput,
+                  ]}
+                />
+
+                <TextInput
+                  placeholder="Descripción *"
+                  placeholderTextColor={COLORS.placeholder}
+                  value={form.description}
+                  onChangeText={(text) => setForm({ ...form, description: text })}
+                  multiline
+                  style={[
+                    styles.input,
+                    styles.textArea,
+                    invalidFields.description && styles.invalidInput,
+                  ]}
+                />
+
+                {/* Precio */}
+                <View style={styles.inputGroup}>
+                  <TextInput
+                    placeholder="Precio *"
+                    placeholderTextColor={COLORS.placeholder}
+                    keyboardType="numeric"
+                    value={form.price}
+                    onChangeText={(text) => setForm({ ...form, price: text })}
+                    style={[
+                      styles.input,
+                      invalidFields.price && styles.invalidInput,
+                    ]}
+                  />
+                </View>
+
+                {/* Stock disponible */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Stock disponible *</Text>
+                  <View style={styles.stockContainer}>
+                    <TouchableOpacity
+                      onPress={() => handleStockChange(parseInt(form.stock) - 1)}
+                      style={styles.stockButton}
+                      disabled={parseInt(form.stock) <= 0}
+                    >
+                      <Ionicons
+                        name="remove"
+                        size={20}
+                        color={
+                          parseInt(form.stock) <= 0 ? COLORS.lightGray : COLORS.primary
+                        }
+                      />
+                    </TouchableOpacity>
+                    <TextInput
+                      value={form.stock}
+                      onChangeText={handleStockChange}
+                      keyboardType="numeric"
+                      style={styles.stockInput}
+                    />
+                    <TouchableOpacity
+                      onPress={() => handleStockChange(parseInt(form.stock) + 1)}
+                      style={styles.stockButton}
+                    >
+                      <Ionicons name="add" size={20} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  </View>
+                  {invalidFields.stock && (
+                    <Text style={styles.errorText}>El stock no puede ser negativo</Text>
+                  )}
+                </View>
+
+                {/* Categoría */}
+                <Text style={styles.label}>Categoría *</Text>
+                <View
+                  style={[
+                    styles.pickerContainer,
+                    invalidFields.category && styles.invalidInput,
+                  ]}
+                >
+                  <Picker
+                    selectedValue={form.category}
+                    onValueChange={(value) => setForm({ ...form, category: value })}
+                    style={styles.picker}
+                  >
+                    <Picker.Item
+                      label="Selecciona una categoría..."
+                      value=""
+                      style={{ color: COLORS.placeholder }}
+                      enabled={false}
+                    />
+                    {categories.map((item) => (
+                      <Picker.Item
+                        key={item.value}
+                        label={item.label}
+                        value={item.value}
+                      />
+                    ))}
+                  </Picker>
+                  <Ionicons
+                    name="chevron-down"
+                    size={20}
+                    color={COLORS.gray}
+                    style={styles.pickerIcon}
+                  />
+                </View>
+              </View>
+
+              {/* Imagen del producto */}
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>Imagen del Producto *</Text>
+                <TouchableOpacity
+                  onPress={pickImage}
+                  style={[
+                    styles.imagePicker,
+                    invalidFields.image && styles.invalidInput,
+                  ]}
+                >
+                  {imageUri ? (
+                    <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                  ) : (
+                    <View style={styles.placeholder}>
+                      <Ionicons name="image-outline" size={48} color={COLORS.lightGray} />
+                      <Text style={styles.placeholderText}>
+                        Seleccionar imagen del producto
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Información Adicional */}
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>Información Adicional</Text>
+
+                <TextInput
+                  placeholder="Ingredientes y alérgenos..."
+                  placeholderTextColor={COLORS.placeholder}
+                  value={form.ingredients}
+                  onChangeText={(text) => setForm({ ...form, ingredients: text })}
+                  multiline
+                  style={[styles.input, styles.textArea]}
+                />
+
+                {/* Tiempo estimado de preparación */}
+                <Text style={styles.label}>Tiempo estimado de preparación</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={form.preparationTime}
+                    onValueChange={(value) =>
+                      setForm({ ...form, preparationTime: value })
+                    }
+                    style={styles.picker}
+                  >
+                    <Picker.Item
+                      label="Selecciona tiempo de preparación..."
+                      value=""
+                      style={{ color: COLORS.placeholder }}
+                      enabled={false}
+                    />
+                    {preparationTimes.map((time) => (
+                      <Picker.Item
+                        key={time.value}
+                        label={time.label}
+                        value={time.value}
+                      />
+                    ))}
+                  </Picker>
+                  <Ionicons
+                    name="chevron-down"
+                    size={20}
+                    color={COLORS.gray}
+                    style={styles.pickerIcon}
+                  />
+                </View>
+              </View>
+
+              {/* Variantes */}
+              <View style={styles.formSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Variantes</Text>
+                  <TouchableOpacity onPress={addVariant} style={styles.addOptionButton}>
+                    <Ionicons name="add" size={20} color={COLORS.primary} />
+                    <Text style={styles.addOptionText}>Añadir variante</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {form.variants.map((variant, index) => (
+                  <View key={index} style={styles.variantCard}>
+                    {/* Header de la variante con botón eliminar */}
+                    <View style={styles.variantHeader}>
+                      <Text style={styles.variantNumber}>Variante {index + 1}</Text>
+                      <TouchableOpacity
+                        onPress={() => removeVariant(index)}
+                        style={styles.removeVariantButton}
+                      >
+                        <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Campos apilados verticalmente */}
+                    <View style={styles.variantFields}>
+                      {/* Nombre de la variante */}
+                      <View style={styles.variantInputGroup}>
+                        <Text style={styles.variantLabel}>Nombre de la variante</Text>
+                        <TextInput
+                          placeholder="Eje: Tamaño grande, Extra queso..."
+                          placeholderTextColor={COLORS.placeholder}
+                          value={variant.name}
+                          onChangeText={(text) => updateVariant(index, 'name', text)}
+                          style={styles.input}
+                        />
+                      </View>
+
+                      {/* Precio adicional */}
+                      <View style={styles.variantInputGroup}>
+                        <Text style={styles.variantLabel}>Precio adicional</Text>
+                        <TextInput
+                          placeholder="$ 0"
+                          placeholderTextColor={COLORS.placeholder}
+                          keyboardType="numeric"
+                          value={variant.additionalPrice}
+                          onChangeText={(text) =>
+                            updateVariant(index, 'additionalPrice', text)
+                          }
+                          style={styles.input}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Botones de Acción */}
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   onPress={() => {
                     setModalVisible(false);
                     resetForm();
                   }}
+                  style={styles.cancelButton}
                 >
-                  <Text style={styles.cancel}>Cancelar</Text>
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleSave}>
-                  <Text style={styles.save}>Guardar</Text>
+                <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+                  <Text style={styles.saveButtonText}>
+                    {editingMenuId ? 'Actualizar' : 'Crear Producto'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -598,278 +849,423 @@ const FoodMenu = ({ navigation, route }) => {
         </View>
       </Modal>
 
-      {/* Modal for enlarged view of the image */}
+      {/* Vista del Producto */}
       <Modal
         visible={viewModalVisible}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setViewModalVisible(false)}
       >
         <View style={styles.viewModalOverlay}>
           <View style={styles.viewModalContent}>
             {selectedMenu && (
               <>
-                {selectedMenu.imageUri ? (
-                  <Image
-                    source={{ uri: selectedMenu.imageUri }}
-                    style={styles.expandedImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.expandedPlaceholder}>
-                    <Ionicons name="image-outline" size={64} color="#ccc" />
-                    <Text style={styles.expandedPlaceholderText}>
-                      Imagen no disponible
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.menuDetails}>
-                  <Text style={styles.expandedMenuName}>
-                    {selectedMenu.name}
-                  </Text>
-                  <Text style={styles.expandedMenuDesc}>
-                    {selectedMenu.description}
-                  </Text>
-                  <Text style={styles.expandedMenuPrice}>
-                    ${selectedMenu.price}
-                  </Text>
-                </View>
-
-                <TouchableHighlight
-                  style={styles.okButton}
-                  underlayColor="#c5c6c5ff"
+                <TouchableOpacity
+                  style={styles.closeViewButton}
                   onPress={() => setViewModalVisible(false)}
                 >
-                  <Text style={styles.okButtonText}>OK</Text>
-                </TouchableHighlight>
+                  <Ionicons name="close" size={24} color={COLORS.white} />
+                </TouchableOpacity>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {selectedMenu.imageUri ? (
+                    <Image
+                      source={{ uri: selectedMenu.imageUri }}
+                      style={styles.expandedImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.expandedPlaceholder}>
+                      <Ionicons name="image-outline" size={64} color={COLORS.lightGray} />
+                      <Text style={styles.expandedPlaceholderText}>
+                        Imagen no disponible
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.menuDetails}>
+                    <Text style={styles.expandedMenuName}>{selectedMenu.name}</Text>
+                    <Text style={styles.expandedMenuCategory}>
+                      {selectedMenu.category}
+                    </Text>
+                    <Text style={styles.expandedMenuDesc}>
+                      {selectedMenu.description}
+                    </Text>
+
+                    {selectedMenu.ingredients && (
+                      <View style={styles.detailSection}>
+                        <Text style={styles.detailLabel}>Ingredientes</Text>
+                        <Text style={styles.detailText}>{selectedMenu.ingredients}</Text>
+                      </View>
+                    )}
+
+                    {selectedMenu.preparationTime && (
+                      <View style={styles.detailSection}>
+                        <Text style={styles.detailLabel}>Tiempo de preparación</Text>
+                        <Text style={styles.detailText}>
+                          {selectedMenu.preparationTime} minutos
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.priceContainer}>
+                      <Text style={styles.expandedMenuPrice}>${selectedMenu.price}</Text>
+                      <Text style={styles.stockText}>
+                        {selectedMenu.stock || 0} disponibles
+                      </Text>
+                    </View>
+                  </View>
+                </ScrollView>
               </>
             )}
           </View>
         </View>
       </Modal>
 
-      {/* Success modal */}
+      {/* Modales de Estado (éxito, error, confirmación) */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={successModalVisible}
         onRequestClose={() => setSuccessModalVisible(false)}
       >
-        <View style={styles.customModalOverlay}>
-          <View style={styles.customModalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="checkmark-circle" size={32} color="#10b981" />
-              <Text style={styles.customModalTitle}>Éxito</Text>
+        <View style={styles.alertModalOverlay}>
+          <View style={styles.alertModalContent}>
+            <View style={styles.alertIconSuccess}>
+              <Ionicons name="checkmark-circle" size={48} color={COLORS.success} />
             </View>
-            <Text style={styles.customModalMessage}>{modalMessage}</Text>
+            <Text style={styles.alertTitle}>Éxito</Text>
+            <Text style={styles.alertMessage}>{modalMessage}</Text>
             <TouchableOpacity
-              style={[styles.modalButton, styles.successButton]}
+              style={styles.alertButton}
               onPress={() => setSuccessModalVisible(false)}
             >
-              <Text style={styles.modalButtonText}>Aceptar</Text>
+              <Text style={styles.alertButtonText}>Aceptar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Error modal */}
+      {/* Error Modal */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={errorModalVisible}
         onRequestClose={() => setErrorModalVisible(false)}
       >
-        <View style={styles.customModalOverlay}>
-          <View style={styles.customModalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="close-circle" size={32} color="#ef4444" />
-              <Text style={styles.customModalTitle}>Error</Text>
+        <View style={styles.alertModalOverlay}>
+          <View style={styles.alertModalContent}>
+            <View style={styles.alertIconError}>
+              <Ionicons name="close-circle" size={48} color={COLORS.error} />
             </View>
-            <Text style={styles.customModalMessage}>{modalMessage}</Text>
+            <Text style={styles.alertTitle}>Error</Text>
+            <Text style={styles.alertMessage}>{modalMessage}</Text>
             <TouchableOpacity
-              style={[styles.modalButton, styles.errorButton]}
+              style={styles.alertButton}
               onPress={() => setErrorModalVisible(false)}
             >
-              <Text style={styles.modalButtonText}>Aceptar</Text>
+              <Text style={styles.alertButtonText}>Aceptar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Deletion confirmation mode */}
+      {/* Delete Confirmation Modal */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={deleteConfirmModalVisible}
         onRequestClose={() => setDeleteConfirmModalVisible(false)}
       >
-        <View style={styles.customModalOverlay}>
-          <View style={styles.customModalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="warning" size={32} color="#f59e0b" />
-              <Text style={styles.customModalTitle}>Confirmar</Text>
+        <View style={styles.alertModalOverlay}>
+          <View style={styles.alertModalContent}>
+            <View style={styles.alertIconWarning}>
+              <Ionicons name="warning" size={48} color={COLORS.warning} />
             </View>
-            <Text style={styles.customModalMessage}>
-              ¿Estás seguro de que deseas eliminar este menú?
+            <Text style={styles.alertTitle}>Confirmar</Text>
+            <Text style={styles.alertMessage}>
+              ¿Estás seguro de que deseas eliminar este producto?
             </Text>
-            <View style={styles.confirmModalActions}>
+            <View style={styles.confirmActions}>
               <TouchableOpacity
-                style={[styles.confirmModalButton, styles.cancelButton]}
+                style={[styles.confirmButton, styles.cancelConfirmButton]}
                 onPress={() => setDeleteConfirmModalVisible(false)}
               >
-                <Text style={styles.modalButtonText}>Cancelar</Text>
+                <Text style={styles.cancelConfirmButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.confirmModalButton, styles.deleteButton]}
+                style={[styles.confirmButton, styles.deleteConfirmButton]}
                 onPress={confirmDelete}
               >
-                <Text style={styles.modalButtonText}>Eliminar</Text>
+                <Text style={styles.deleteConfirmButtonText}>Eliminar</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Permission mode denied */}
+      {/* Permission Modal */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={permissionModalVisible}
         onRequestClose={() => setPermissionModalVisible(false)}
       >
-        <View style={styles.customModalOverlay}>
-          <View style={styles.customModalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="alert-circle" size={32} color="#f59e0b" />
-              <Text style={styles.customModalTitle}>Permiso requerido</Text>
+        <View style={styles.alertModalOverlay}>
+          <View style={styles.alertModalContent}>
+            <View style={styles.alertIconWarning}>
+              <Ionicons name="alert-circle" size={48} color={COLORS.warning} />
             </View>
-            <Text style={styles.customModalMessage}>{modalMessage}</Text>
+            <Text style={styles.alertTitle}>Permiso requerido</Text>
+            <Text style={styles.alertMessage}>{modalMessage}</Text>
             <TouchableOpacity
-              style={[styles.modalButton, styles.warningButton]}
+              style={styles.alertButton}
               onPress={() => setPermissionModalVisible(false)}
             >
-              <Text style={styles.modalButtonText}>Entendido</Text>
+              <Text style={styles.alertButtonText}>Entendido</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </View>
+    </Animated.View>
   );
+};
+
+const COLORS = {
+  primary: '#00CC86',
+  white: '#FFFFFF',
+  gray: '#6B7280',
+  lightGray: '#E5E7EB',
+  placeholder: '#9CA3AF',
+  background: '#F9FAFB',
+  error: '#EF4444',
+  success: '#10B981',
+  warning: '#F59E0B',
+  card: '#FFFFFF',
+  text: '#1F2937',
+  textLight: '#6B7280',
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: COLOR.white,
-  },
-  addButton: {
-    backgroundColor: COLOR.orange,
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: COLOR.white,
-    fontWeight: 'bold',
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: COLOR.white,
-    padding: 20,
-    width: '90%',
-    maxHeight: '90%',
-    borderRadius: 10,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: COLOR.orange,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  imagePicker: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 15,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    marginVertical: 10,
-    resizeMode: 'cover',
-  },
-  placeholder: {
-    width: '100%',
-    height: 170,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f2f2f2',
-  },
-  placeholderText: {
-    color: '#aaa',
-    fontSize: 12,
-    marginTop: 5,
-  },
-  cancel: {
-    color: COLOR.gray,
-    fontWeight: 'bold',
-  },
-  save: {
-    color: '#09a309ff',
-    fontWeight: 'bold',
+    backgroundColor: COLORS.background,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  header: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+  },
+  logoWrapper: {
+    alignItems: 'center',
+  },
+  logoContainer: {
+    position: 'relative',
+  },
+  logo: {
+    width: 350,
+    height: 200,
+    borderRadius: 12,
+    resizeMode: 'cover',
+  },
+  logoOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 6,
+    borderRadius: 8,
+  },
+  logoSpinner: {
+    position: 'absolute',
+    top: '40%',
+    left: '45%',
+  },
+  logoPlaceholder: {
+    width: 350,
+    height: 200,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.lightGray,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+  },
+  logoText: {
+    fontSize: 12,
+    color: COLORS.gray,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  changeLogoText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    marginTop: 8,
+    fontWeight: '500',
+  },
+
+  // Botón Principal
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    padding: 16,
+    margin: 16,
+    borderRadius: 12,
+    shadowColor: COLORS.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  addButtonDisabled: {
+    backgroundColor: COLORS.lightGray,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  addButtonText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+
+  // Lista
+  listContent: {
+    padding: 16,
+    paddingBottom: 20,
+  },
+
+  // Modal Principal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  closeButton: {
+    padding: 4,
+  },
+
+  // Formulario
+  formSection: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    color: COLORS.text,
+    backgroundColor: COLORS.white,
+    fontSize: 14,
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  invalidInput: {
+    borderColor: COLORS.error,
+    borderWidth: 1,
+  },
   label: {
     fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    marginTop: 8,
+    fontWeight: '500',
+    color: COLORS.text,
+    marginBottom: 8,
   },
-  pickerContainer: {
-    position: 'relative',
+  inputGroup: {
+    marginBottom: 12,
+  },
+
+  // Stock Controls
+  stockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: COLORS.lightGray,
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
+  },
+  stockButton: {
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stockInput: {
+    flex: 1,
+    textAlign: 'center',
+    padding: 12,
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+
+  // Picker
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
     borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    elevation: 1,
+    backgroundColor: COLORS.white,
+    position: 'relative',
   },
   picker: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    height: 56,
-    width: '100%',
-    color: '#000',
-    paddingLeft: 10,
+    height: 55,
+    color: COLORS.text,
+    paddingLeft: 12,
   },
   pickerIcon: {
     position: 'absolute',
@@ -877,122 +1273,225 @@ const styles = StyleSheet.create({
     top: 15,
     pointerEvents: 'none',
   },
-  logoWrapper: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  logoPlaceholder: {
-    width: 140,
-    height: 140,
-    borderRadius: 80,
-    borderWidth: 1,
-    borderColor: '#ccc',
+
+  // Image Picker
+  imagePicker: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f4f4f4',
+    marginBottom: 0,
   },
-  logo: {
-    width: 140,
-    height: 140,
-    borderRadius: 80,
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
     resizeMode: 'cover',
   },
-  logoText: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  logoSpinner: {
-    position: 'absolute',
-    top: '40%',
-    left: '40%',
-  },
-  invalidInput: {
-    borderColor: COLOR.red,
+  placeholder: {
+    width: '100%',
+    height: 150,
     borderWidth: 2,
+    borderColor: COLORS.lightGray,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
   },
+  placeholderText: {
+    color: COLORS.placeholder,
+    fontSize: 12,
+    marginTop: 8,
+  },
+
+  // Variantes
+  addOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+  },
+  addOptionText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  variantCard: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  variantHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+  },
+  variantNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  removeVariantButton: {
+    padding: 4,
+  },
+  variantFields: {
+    gap: 12,
+  },
+  variantLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.text,
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+
+  // Botones de Acción
+  modalActions: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: COLORS.gray,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  saveButton: {
+    flex: 2,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+
+  // Vista Ampliada
   viewModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
+    backgroundColor: 'rgba(0,0,0,0.9)',
   },
   viewModalContent: {
-    width: '95%',
-    maxHeight: '85%',
-    backgroundColor: COLOR.white,
-    borderRadius: 16,
-    padding: 15,
-    alignItems: 'center',
-    elevation: 3,
+    flex: 1,
+    backgroundColor: COLORS.white,
   },
-  okButton: {
-    marginTop: 10,
-    backgroundColor: '#4CAF50',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  okButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  closeViewButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
   },
   expandedImage: {
     width: '100%',
-    height: 330,
-    borderRadius: 12,
-    marginBottom: 16,
+    height: 300,
   },
   expandedPlaceholder: {
     width: '100%',
     height: 300,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
   },
   expandedPlaceholderText: {
-    color: '#888',
-    marginTop: 10,
+    color: COLORS.placeholder,
+    marginTop: 16,
     fontSize: 16,
   },
   menuDetails: {
-    width: '100%',
-    alignItems: 'center',
+    padding: 24,
   },
   expandedMenuName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  expandedMenuCategory: {
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: '500',
+    marginBottom: 16,
   },
   expandedMenuDesc: {
     fontSize: 16,
-    color: '#555',
-    marginBottom: 15,
-    textAlign: 'center',
+    color: COLORS.textLight,
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  detailSection: {
+    marginBottom: 20,
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  detailText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    lineHeight: 20,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.lightGray,
   },
   expandedMenuPrice: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLOR.orange,
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  stockText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    fontWeight: '500',
   },
 
-  customModalOverlay: {
+  // Modales de Alerta
+  alertModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  customModalContent: {
+  alertModalContent: {
     backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     width: '100%',
     maxWidth: 350,
     alignItems: 'center',
@@ -1005,61 +1504,68 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
+  alertIconSuccess: {
+    marginBottom: 16,
   },
-  customModalTitle: {
+  alertIconError: {
+    marginBottom: 16,
+  },
+  alertIconWarning: {
+    marginBottom: 16,
+  },
+  alertTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  customModalMessage: {
+  alertMessage: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 20,
-    color: '#555',
+    marginBottom: 24,
+    color: COLORS.textLight,
+    lineHeight: 22,
   },
-  modalButton: {
+  alertButton: {
     paddingVertical: 12,
-    paddingHorizontal: 30,
+    paddingHorizontal: 32,
     borderRadius: 8,
+    backgroundColor: COLORS.primary,
     width: '100%',
     alignItems: 'center',
   },
-  confirmModalButton: {
+  alertButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  confirmButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
-    marginHorizontal: 5,
   },
-  successButton: {
-    backgroundColor: '#10b981',
+  cancelConfirmButton: {
+    backgroundColor: COLORS.lightGray,
   },
-  errorButton: {
-    backgroundColor: '#ef4444',
-  },
-  warningButton: {
-    backgroundColor: '#f59e0b',
-  },
-  cancelButton: {
-    backgroundColor: '#6b7280',
-  },
-  deleteButton: {
-    backgroundColor: '#ef4444',
-  },
-  modalButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  cancelConfirmButtonText: {
+    color: COLORS.text,
+    fontWeight: '600',
     fontSize: 16,
   },
-  confirmModalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 15,
+  deleteConfirmButton: {
+    backgroundColor: COLORS.error,
+  },
+  deleteConfirmButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 
