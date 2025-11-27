@@ -21,12 +21,12 @@ export const API = {
     GET_DASHBOARD: (businessId) => `${BASE_URL}/business/${businessId}/dashboard`,
     UPDATE_PAYMENT_METHODS: `${BASE_URL}/business/updatePaymentMethods`,
   },
-  MENU: {
-    CREATE: `${BASE_URL}/menu/create`,
-    UPDATE: (menuId) => `${BASE_URL}/menu/update/${menuId}`,
-    DELETE: (menuId) => `${BASE_URL}/menu/delete/${menuId}`,
-    GET_BY_BUSINESS: (businessId) => `${BASE_URL}/menu/getMenusByBusiness/${businessId}`,
-    GET_IMAGE_BY_MENU_ID: (menuId) => `${BASE_URL}/menu/getImage/${menuId}`,
+  PRODUCTS: {
+    UPSERT: `${BASE_URL}/products/upsert`,
+    DELETE: (productId) => `${BASE_URL}/products/delete/${productId}`,
+    GET_BY_PRODUCT: (productId) => `${BASE_URL}/products/getProductByProductId/${productId}`,
+    GET_BY_PRODUCTS: (businessId) => `${BASE_URL}/products/getProductsByBusiness/${businessId}`,
+    GET_IMAGE_BY_PRODUCT: (productId) => `${BASE_URL}/products/getImage/${productId}`,
   },
   SCHEDULES: {
     CREATE: `${BASE_URL}/schedules/create`,

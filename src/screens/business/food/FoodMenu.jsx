@@ -10,299 +10,259 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
-  Animated,
+  Dimensions,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import {
   updateLogoBusinessById,
   generateLogoUri,
 } from '../../../services/BusinessService';
 import {
-  getMenusByBusiness,
-  createMenu,
-  updateMenu,
-  deleteMenu,
-  getImageByMenuId,
-} from '../../../services/MenuService';
+  getProductsByBusiness,
+  upsertProduct,
+  deleteProduct,
+  getProductImage,
+} from '../../../services/ProductService';
 
-import { categories } from '../../../data/Categories';
-import { preloadImage } from '../../../components/ImageCache';
-import useScrollHandler from '../../../components/HandleScroll';
-import { MenuItem } from '../../../components/MenuItem';
-
-// Opciones para el tiempo de preparación
-const preparationTimes = [
-  { label: '🕓 10 min', value: '10' },
-  { label: '🕓 15 min', value: '15' },
-  { label: '🕓 20 min', value: '20' },
-  { label: '🕓 25 min', value: '25' },
-  { label: '🕓 30 min', value: '30' },
-  { label: '🕓 35 min', value: '35' },
-  { label: '🕓 40 min', value: '40' },
-  { label: '🕓 50 min', value: '50' },
-  { label: '🕓 60 min', value: '60' },
+// Categorías dinámicas para comida
+const foodCategories = [
+  { label: '🍕 Pizza', value: 'pizza' },
+  { label: '🍔 Hamburguesas', value: 'burgers' },
+  { label: '🌮 Tacos', value: 'tacos' },
+  { label: '🍗 Pollo', value: 'chicken' },
+  { label: '🥗 Ensaladas', value: 'salads' },
+  { label: '🍝 Pastas', value: 'pasta' },
+  { label: '🥨 Antojitos', value: 'snacks' },
+  { label: '🍛 Platos Fuertes', value: 'main_courses' },
+  { label: '🍤 Mariscos', value: 'seafood' },
+  { label: '🥤 Bebidas', value: 'drinks' },
+  { label: '🍰 Postres', value: 'desserts' },
+  { label: '🫓 Panaderia', value: 'bakery' },
+  { label: '🥩 Carnes', value: 'Meats' },
 ];
+
+// Tiempos de preparación
+const preparationTimes = [
+  { label: '🕓 10 min', value: 10 },
+  { label: '🕓 15 min', value: 15 },
+  { label: '🕓 20 min', value: 20 },
+  { label: '🕓 25 min', value: 25 },
+  { label: '🕓 30 min', value: 30 },
+  { label: '🕓 35 min', value: 35 },
+  { label: '🕓 40 min', value: 40 },
+  { label: '🕓 50 min', value: 50 },
+  { label: '🕓 60 min', value: 60 },
+];
+
+// Genera ID único para variantes
+const generateVariantId = () => `variant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+// Componente ProductItem memoizado
+const ProductItem = React.memo(({ item, onView, onEdit, onDelete, onImageError, getImageUrl }) => {
+  const [imageError, setImageError] = useState(false);
+
+  const handleImageError = () => {
+    setImageError(true);
+    onImageError(item.productId);
+  };
+
+  return (
+    <TouchableOpacity style={styles.productCard} onPress={() => onView(item)}>
+      {getImageUrl(item.productId) && !imageError ? (
+        <Image
+          source={{ uri: getImageUrl(item.productId) }}
+          style={styles.productImage}
+          onError={handleImageError}
+        />
+      ) : (
+        <View style={styles.productImagePlaceholder}>
+          <Ionicons name="fast-food-outline" size={32} color={COLORS.lightGray} />
+          <Text style={styles.placeholderText}>Imagen no disponible</Text>
+        </View>
+      )}
+
+      <View style={styles.productInfo}>
+        <Text style={styles.productName}>{item.name}</Text>
+        <Text style={styles.productCategory}>
+          {foodCategories.find((cat) => cat.value === item.category)?.label || item.category}
+        </Text>
+        <Text style={styles.productPrice}>${parseFloat(item.price).toFixed(2)}</Text>
+        <Text style={styles.productStock}>
+          {item.generalStock || 0} disponibles
+        </Text>
+        {item.preparationTime && (
+          <Text style={styles.productTime}>⏱ {item.preparationTime} min</Text>
+        )}
+      </View>
+
+      <View style={styles.productActions}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => onView(item)}
+        >
+          <Ionicons name="eye-outline" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => onEdit(item)}
+        >
+          <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => onDelete(item.productId)}
+        >
+          <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+// Modales reutilizables
+const SuccessModal = ({ visible, message, onClose }) => (
+  <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <View style={styles.alertModalOverlay}>
+      <View style={styles.alertModalContent}>
+        <View style={styles.alertIconSuccess}>
+          <Ionicons name="checkmark-circle" size={48} color={COLORS.success} />
+        </View>
+        <Text style={styles.alertTitle}>Éxito</Text>
+        <Text style={styles.alertMessage}>{message}</Text>
+        <TouchableOpacity style={styles.alertButton} onPress={onClose}>
+          <Text style={styles.alertButtonText}>Aceptar</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
+
+const ErrorModal = ({ visible, message, onClose }) => (
+  <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <View style={styles.alertModalOverlay}>
+      <View style={styles.alertModalContent}>
+        <View style={styles.alertIconError}>
+          <Ionicons name="close-circle" size={48} color={COLORS.error} />
+        </View>
+        <Text style={styles.alertTitle}>Error</Text>
+        <Text style={styles.alertMessage}>{message}</Text>
+        <TouchableOpacity style={styles.alertButton} onPress={onClose}>
+          <Text style={styles.alertButtonText}>Aceptar</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
+
+const DeleteConfirmModal = ({ visible, onCancel, onConfirm }) => (
+  <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+    <View style={styles.alertModalOverlay}>
+      <View style={styles.alertModalContent}>
+        <View style={styles.alertIconWarning}>
+          <Ionicons name="warning" size={48} color={COLORS.warning} />
+        </View>
+        <Text style={styles.alertTitle}>Confirmar</Text>
+        <Text style={styles.alertMessage}>
+          ¿Estás seguro de que deseas eliminar este producto?
+        </Text>
+        <View style={styles.confirmActions}>
+          <TouchableOpacity
+            style={[styles.confirmButton, styles.cancelConfirmButton]}
+            onPress={onCancel}
+          >
+            <Text style={styles.cancelConfirmButtonText}>Cancelar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.confirmButton, styles.deleteConfirmButton]}
+            onPress={onConfirm}
+          >
+            <Text style={styles.deleteConfirmButtonText}>Eliminar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
+
+const PermissionModal = ({ visible, message, onClose }) => (
+  <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <View style={styles.alertModalOverlay}>
+      <View style={styles.alertModalContent}>
+        <View style={styles.alertIconWarning}>
+          <Ionicons name="alert-circle" size={48} color={COLORS.warning} />
+        </View>
+        <Text style={styles.alertTitle}>Permiso requerido</Text>
+        <Text style={styles.alertMessage}>{message}</Text>
+        <TouchableOpacity style={styles.alertButton} onPress={onClose}>
+          <Text style={styles.alertButtonText}>Entendido</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
 
 const FoodMenu = ({ navigation, route }) => {
   const { sector } = route.params || {};
+
   const [logoUri, setLogo] = useState(null);
-  const [imageUri, setImage] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoError, setLogoError] = useState(false);
-  const [menus, setMenus] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
-  const [selectedMenu, setSelectedMenu] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [form, setForm] = useState({
     name: '',
     description: '',
     price: '',
     category: '',
-    stock: '0',
+    generalStock: '0',
     ingredients: '',
     preparationTime: '',
     variants: [],
   });
-  const [editingMenuId, setEditingMenuId] = useState(null);
+  const [editingProductId, setEditingProductId] = useState(null);
   const [businessId, setBusinessId] = useState(null);
   const [invalidFields, setInvalidFields] = useState({});
-  const [imageMeta, setImageMeta] = useState(null);
   const [isNewLogoSelected, setIsNewLogoSelected] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // Estados para modales
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [deleteConfirmModalVisible, setDeleteConfirmModalVisible] = useState(false);
   const [permissionModalVisible, setPermissionModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
-  const [menuToDelete, setMenuToDelete] = useState(null);
-  const [visibleItems, setVisibleItems] = useState(new Set());
-  const { handleScroll, isScrolling, cleanup } = useScrollHandler();
+  const [productToDelete, setProductToDelete] = useState(null);
 
   // Animaciones
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(300))[0];
+  const fadeAnim = useSharedValue(0);
+  const slideAnim = useSharedValue(300);
 
-  useEffect(() => {
-    const loadMenus = async () => {
-      const stored = await AsyncStorage.getItem('userInfo');
-      const user = JSON.parse(stored);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+    transform: [{ translateY: slideAnim.value }],
+  }));
 
-      const id = user.businessId;
-      setBusinessId(id);
-
-      const logoUrl = generateLogoUri(id);
-      console.log('Logo URI:', logoUrl);
-      setLogo(logoUrl);
-
-      const data = await getMenusByBusiness(id);
-      setMenus(data);
-      setLoading(false);
-
-      // Animación de entrada
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    };
-
-    loadMenus();
+  // Función para el carrusel de imágenes
+  const onImageScroll = useCallback((event) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const currentIndex = event.nativeEvent.contentOffset.x / slideSize;
+    setCurrentImageIndex(Math.round(currentIndex));
   }, []);
-
-  useEffect(() => {
-    if (logoUri) {
-      setLogoLoaded(false);
-    }
-  }, [logoUri]);
-
-  useEffect(() => {
-    if (!isScrolling && visibleItems.size > 0) {
-      const preloadImages = async () => {
-        await Promise.all(
-          Array.from(visibleItems).map(async (menuId) => {
-            const imageUrl = getImageByMenuId(menuId);
-            return preloadImage(imageUrl);
-          }),
-        );
-      };
-      preloadImages();
-    }
-  }, [visibleItems, isScrolling]);
-
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, []);
-
-  const handleViewableItemsChanged = useCallback(({ viewableItems }) => {
-    const newVisibleItems = new Set();
-    viewableItems.forEach(({ item }) => {
-      newVisibleItems.add(item.menuId);
-    });
-    setVisibleItems(newVisibleItems);
-  }, []);
-
-  const handleLogoLoad = () => {
-    setLogoLoaded(true);
-    setLogoError(false);
-  };
-
-  const handleLogoError = () => {
-    setLogoLoaded(false);
-    setLogoError(true);
-  };
-
-  const handleImageError = useCallback((menuId) => {
-    setImageErrors((prev) => ({ ...prev, [menuId]: true }));
-  }, []);
-
-  const openModal = (menu = null) => {
-    if (menu) {
-      setForm({
-        name: menu.name,
-        description: menu.description,
-        price: menu.price.toString(),
-        category: menu.category || '',
-        stock: menu.stock?.toString() || '0',
-        ingredients: menu.ingredients || '',
-        preparationTime: menu.preparationTime || '',
-        variants: menu.variants || [],
-      });
-      setEditingMenuId(menu.menuId);
-    } else {
-      setForm({
-        name: '',
-        description: '',
-        price: '',
-        category: '',
-        stock: '0',
-        ingredients: '',
-        preparationTime: '',
-        variants: [],
-      });
-      setEditingMenuId(null);
-    }
-    setModalVisible(true);
-  };
-
-  const openViewModal = (menu, imageUri = null) => {
-    const imageToUse = imageUri || getImageByMenuId(menu.menuId);
-    setSelectedMenu({ ...menu, imageUri: imageToUse });
-    setViewModalVisible(true);
-  };
-
-  const showPermissionDeniedModal = () => {
-    setModalMessage('Se necesita acceso a la galería para seleccionar imágenes.');
-    setPermissionModalVisible(true);
-  };
-
-  const showErrorModal = (message) => {
-    setModalMessage(message);
-    setErrorModalVisible(true);
-  };
-
-  const showSuccessModal = (message) => {
-    setModalMessage(message);
-    setSuccessModalVisible(true);
-  };
-
-  const showDeleteConfirmModal = (menuId) => {
-    setMenuToDelete(menuId);
-    setDeleteConfirmModalVisible(true);
-  };
-
-  const pickLogo = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showPermissionDeniedModal();
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      aspect: [3, 2],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets.length > 0) {
-      const selectedImage = result.assets[0];
-      setLogoError(false);
-      setLogoLoaded(false);
-      setLogo(selectedImage.uri);
-      setIsNewLogoSelected(true);
-    }
-  };
-
-  const pickImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (status !== 'granted') {
-        showPermissionDeniedModal();
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        allowsEditing: true,
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        const selectedImage = result.assets[0];
-        setImage(selectedImage.uri);
-        setImageMeta({
-          uri: selectedImage.uri,
-          name: selectedImage.fileName || `image_${Date.now()}.jpg`,
-          type: selectedImage.type || 'image/jpeg',
-        });
-      }
-    } catch (err) {
-      console.error('Error al abrir galería:', err);
-      showErrorModal(err.message || 'Error al abrir la galería');
-    }
-  };
-
-  const addVariant = () => {
-    setForm({
-      ...form,
-      variants: [...form.variants, { name: '', additionalPrice: '0' }],
-    });
-  };
-
-  const removeVariant = (index) => {
-    const newVariants = [...form.variants];
-    newVariants.splice(index, 1);
-    setForm({ ...form, variants: newVariants });
-  };
-
-  const updateVariant = (index, field, value) => {
-    const newVariants = [...form.variants];
-    newVariants[index][field] = value;
-    setForm({ ...form, variants: newVariants });
-  };
-
-  const handleStockChange = (value) => {
-    const numValue = parseInt(value) || 0;
-    if (numValue >= 0) {
-      setForm({ ...form, stock: numValue.toString() });
-    }
-  };
 
   const prepareLogoData = (logoData) => {
     if (!logoData) {
@@ -337,13 +297,13 @@ const FoodMenu = ({ navigation, route }) => {
     return formData;
   };
 
-  const prepareImageData = (imageMeta) => {
-    if (!imageMeta?.uri) {
+  const prepareImageData = (imageFile) => {
+    if (!imageFile?.uri) {
       throw new Error('No se proporcionó la imagen');
     }
 
-    const uriParts = imageMeta.uri.split('/');
-    const filename = imageMeta.name || uriParts[uriParts.length - 1];
+    const uriParts = imageFile.uri.split('/');
+    const filename = imageFile.name || uriParts[uriParts.length - 1];
     const extensionMatch = /\.(\w+)$/.exec(filename);
     const extension = extensionMatch ? extensionMatch[1].toLowerCase() : null;
 
@@ -357,15 +317,286 @@ const FoodMenu = ({ navigation, route }) => {
         mimeType = 'image/png';
         break;
       default:
-        throw new Error('Formato de imagen no soportado. Usa JPG o PNG.');
+        mimeType = imageFile.type || 'image/jpeg';
     }
 
-    const formData = new FormData();
-    formData.append('imagen', {
-      uri: imageMeta.uri,
+    return {
+      uri: imageFile.uri,
       name: filename,
       type: mimeType,
+    };
+  };
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('userInfo');
+        const user = JSON.parse(stored);
+        const id = user.businessId;
+        setBusinessId(id);
+
+        const logoUrl = generateLogoUri(id);
+        setLogo(logoUrl);
+
+        const data = await getProductsByBusiness(id);
+        setProducts(data);
+        setLoading(false);
+
+        // Animaciones
+        fadeAnim.value = withTiming(1, {
+          duration: 600,
+          easing: Easing.out(Easing.cubic),
+        });
+        slideAnim.value = withTiming(0, {
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+        });
+      } catch (error) {
+        console.error('Error loading products:', error);
+        setLoading(false);
+        showErrorModal('Error al cargar los productos');
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
+    if (logoUri) {
+      setLogoLoaded(false);
+    }
+  }, [logoUri]);
+
+  // Handlers
+  const handleLogoLoad = () => {
+    setLogoLoaded(true);
+    setLogoError(false);
+  };
+
+  const handleLogoError = () => {
+    setLogoLoaded(false);
+    setLogoError(true);
+  };
+
+  const handleImageError = useCallback((productId) => {
+    setImageErrors((prev) => ({ ...prev, [productId]: true }));
+  }, []);
+
+  // Para variantes
+  const addVariant = () => {
+    const hasEmptyVariant = form.variants.some(
+      (variant) => !variant.variantType && !variant.variantValue,
+    );
+
+    if (!hasEmptyVariant) {
+      setForm({
+        ...form,
+        variants: [
+          ...form.variants,
+          {
+            id: generateVariantId(),
+            variantType: '',
+            variantValue: '',
+            priceModifier: '0',
+          },
+        ],
+      });
+    } else {
+      console.log('⚠️ Ya existe una variante vacía, completa esa primero');
+    }
+  };
+
+  const removeVariant = (index) => {
+    const newVariants = form.variants.filter((_, i) => i !== index);
+    setForm({ ...form, variants: newVariants });
+  };
+
+  const updateVariant = (index, field, value) => {
+    const newVariants = [...form.variants];
+
+    if (field === 'priceModifier') {
+      const numericValue = value.replace(/[^0-9.]/g, '');
+      newVariants[index][field] = numericValue;
+    } else {
+      newVariants[index][field] = value;
+    }
+
+    setForm({ ...form, variants: newVariants });
+  };
+
+  const handleStockChange = (value) => {
+    const numValue = parseInt(value) || 0;
+    if (numValue >= 0) {
+      setForm({ ...form, generalStock: numValue.toString() });
+    }
+  };
+
+  const openModal = (product = null) => {
+    if (product) {
+      const formattedVariants = product.variants?.map((variant, index) => ({
+        id: generateVariantId(),
+        variantType: variant.variantType || '',
+        variantValue: variant.variantValue || '',
+        priceModifier: variant.priceModifier?.toString() || '0',
+      })) || [];
+
+      setForm({
+        name: product.name,
+        description: product.description,
+        price: product.price.toString(),
+        category: product.category || '',
+        generalStock: product.generalStock?.toString() || '0',
+        ingredients: product.ingredients || '',
+        preparationTime: product.preparationTime || '',
+        variants: formattedVariants,
+      });
+      setEditingProductId(product.productId);
+
+      // Precargar imagen existente si está disponible
+      const existingImageUrl = getProductImage(product.productId);
+      if (existingImageUrl) {
+        setSelectedImage(existingImageUrl);
+      } else {
+        setSelectedImage(null);
+      }
+    } else {
+      resetForm();
+    }
+    setModalVisible(true);
+  };
+
+  const openViewModal = (product) => {
+    setSelectedProduct(product);
+    setViewModalVisible(true);
+    setCurrentImageIndex(0);
+  };
+
+  const showPermissionDeniedModal = () => {
+    setModalMessage('Se necesita acceso a la galería para seleccionar imágenes.');
+    setPermissionModalVisible(true);
+  };
+
+  const showErrorModal = (message) => {
+    setModalMessage(message);
+    setErrorModalVisible(true);
+  };
+
+  const showSuccessModal = (message) => {
+    setModalMessage(message);
+    setSuccessModalVisible(true);
+  };
+
+  const showDeleteConfirmModal = (productId) => {
+    setProductToDelete(productId);
+    setDeleteConfirmModalVisible(true);
+  };
+
+  const pickLogo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showPermissionDeniedModal();
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
     });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const selectedImage = result.assets[0];
+      setLogoError(false);
+      setLogoLoaded(false);
+      setLogo(selectedImage.uri);
+      setIsNewLogoSelected(true);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== 'granted') {
+        showPermissionDeniedModal();
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        const selectedImage = result.assets[0];
+        setSelectedImage(selectedImage.uri);
+      }
+    } catch (err) {
+      console.error('Error al abrir galería:', err);
+      showErrorModal(err.message || 'Error al abrir la galería');
+    }
+  };
+
+  const prepareFormData = () => {
+    const formData = new FormData();
+
+    // Filtrar variantes vacías antes de eliminar duplicados
+    const nonEmptyVariants = form.variants.filter(variant =>
+      variant.variantType && variant.variantValue && variant.variantType.trim() !== '' && variant.variantValue.trim() !== ''
+    );
+
+    console.log('🔍 Variantes no vacías:', nonEmptyVariants.length);
+
+    const uniqueVariantsMap = new Map();
+    nonEmptyVariants.forEach(variant => {
+      const key = `${variant.variantType.toLowerCase().trim()}|${variant.variantValue.toLowerCase().trim()}`;
+      uniqueVariantsMap.set(key, variant);
+    });
+
+    const filteredVariants = Array.from(uniqueVariantsMap.values());
+
+    const productDTO = {
+      productId: editingProductId,
+      sectorId: sector.sectorId,
+      businessId: businessId,
+      sectorName: sector.name,
+      name: form.name,
+      description: form.description,
+      price: parseFloat(form.price),
+      active: true,
+      category: form.category,
+      generalStock: parseInt(form.generalStock),
+      ingredients: form.ingredients,
+      preparationTime: parseInt(form.preparationTime) || null,
+      brand: null,
+      variants: filteredVariants.map(variant => ({
+        variantType: variant.variantType.trim(),
+        variantValue: variant.variantValue.trim(),
+        priceModifier: parseFloat(variant.priceModifier) || 0
+      }))
+    };
+
+    console.log('📤 Enviando ProductDTO:', productDTO);
+
+    formData.append('productDTO', JSON.stringify(productDTO));
+
+    if (selectedImage && !selectedImage.startsWith('http')) {
+      const imageFile = prepareImageData({
+        uri: selectedImage,
+        name: `product_${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      });
+
+      formData.append('file', imageFile);
+
+      console.log('- New image file added to FormData');
+    } else if (!editingProductId) {
+      throw new Error('Los productos nuevos deben tener una imagen');
+    } else {
+      console.log('- No new image to upload, keeping existing image');
+    }
 
     return formData;
   };
@@ -378,8 +609,8 @@ const FoodMenu = ({ navigation, route }) => {
     if (!form.price.trim() || isNaN(form.price) || parseFloat(form.price) <= 0)
       errors.price = true;
     if (!form.category) errors.category = true;
-    if (!imageUri) errors.image = true;
-    if (!form.stock.trim() || parseInt(form.stock) < 0) errors.stock = true;
+    if (!selectedImage && !editingProductId) errors.image = true;
+    if (!form.generalStock.trim() || parseInt(form.generalStock) < 0) errors.generalStock = true;
 
     setInvalidFields(errors);
 
@@ -395,66 +626,48 @@ const FoodMenu = ({ navigation, route }) => {
         await updateLogoBusinessById(businessId, logoFormData);
       }
 
-      const formData = new FormData();
+      const formData = prepareFormData();
 
-      formData.append('menuId', editingMenuId || Date.now());
-      formData.append('businessId', businessId);
-      formData.append('name', form.name);
-      formData.append('description', form.description);
-      formData.append('price', form.price);
-      formData.append('category', form.category);
-      formData.append('stock', form.stock);
-      formData.append('ingredients', form.ingredients);
-      formData.append('preparationTime', form.preparationTime);
-      formData.append('variants', JSON.stringify(form.variants));
+      console.info(editingProductId ? 'Actualizando producto...' : 'Creando nuevo producto...');
+      const savedProduct = await upsertProduct(formData);
 
-      const imageFormData = prepareImageData(imageMeta);
-      formData.append('imagen', imageFormData.get('imagen'));
-
-      if (editingMenuId) {
-        console.info('Actualizando menú con ID:', editingMenuId);
-        await updateMenu(editingMenuId, formData);
-      } else {
-        console.info('Creando nuevo menú...');
-        await createMenu(formData);
-      }
-
-      const updatedMenus = await getMenusByBusiness(businessId);
-      setMenus(updatedMenus);
+      const updatedProducts = await getProductsByBusiness(businessId);
+      setProducts(updatedProducts);
+      
       setModalVisible(false);
       resetForm();
       setIsNewLogoSelected(false);
-      showSuccessModal('Producto guardado correctamente.');
+      showSuccessModal(editingProductId ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.');
     } catch (error) {
-      console.error('Error al guardar menú:', error);
-      showErrorModal('No se pudo guardar el producto. Inténtalo de nuevo.');
-      return;
+      console.error('Error al guardar producto:', error);
+      showErrorModal(error.message || 'No se pudo guardar el producto. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = useCallback((id) => {
-    showDeleteConfirmModal(id);
+  const handleDelete = useCallback((productId) => {
+    showDeleteConfirmModal(productId);
   }, []);
 
   const confirmDelete = async () => {
-    if (!menuToDelete) return;
+    if (!productToDelete) return;
 
     setLoading(true);
     try {
-      await deleteMenu(menuToDelete);
-      console.info('Menú eliminado con ID:', menuToDelete);
-      const updatedMenus = await getMenusByBusiness(businessId);
-      setMenus(updatedMenus);
+      await deleteProduct(productToDelete);
+      console.info('Producto eliminado con ID:', productToDelete);
+      
+      setProducts(prev => prev.filter(p => p.productId !== productToDelete));
+      
       setDeleteConfirmModalVisible(false);
       showSuccessModal('Producto eliminado correctamente.');
     } catch (error) {
-      console.error('Error al eliminar menú:', error);
-      showErrorModal('No se pudo eliminar el producto. Inténtalo de nuevo.');
+      console.error('Error al eliminar producto:', error);
+      showErrorModal(error.message || 'No se pudo eliminar el producto. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
-      setMenuToDelete(null);
+      setProductToDelete(null);
     }
   };
 
@@ -464,30 +677,31 @@ const FoodMenu = ({ navigation, route }) => {
       description: '',
       price: '',
       category: '',
-      stock: '0',
+      generalStock: '0',
       ingredients: '',
       preparationTime: '',
       variants: [],
     });
-    setImage(null);
-    setEditingMenuId(null);
+    setSelectedImage(null);
+    setEditingProductId(null);
     setInvalidFields({});
   };
 
   const renderItem = useCallback(
     ({ item }) => (
-      <MenuItem
+      <ProductItem
         item={item}
         onView={openViewModal}
         onEdit={openModal}
         onDelete={handleDelete}
         onImageError={handleImageError}
+        getImageUrl={getProductImage}
       />
     ),
-    [],
+    [handleDelete, handleImageError],
   );
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -496,15 +710,7 @@ const FoodMenu = ({ navigation, route }) => {
   }
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
+    <Animated.View style={[styles.container, animatedStyle]}>
       {/* Header con Logo */}
       <View style={styles.header}>
         <TouchableOpacity onPress={pickLogo} style={styles.logoWrapper}>
@@ -539,34 +745,29 @@ const FoodMenu = ({ navigation, route }) => {
       </View>
 
       {/* Botón Principal */}
-      <TouchableOpacity
-        style={[styles.addButton, !logoLoaded && styles.addButtonDisabled]}
-        onPress={() => openModal()}
-        disabled={!logoLoaded}
-      >
+      <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
         <Ionicons name="add-circle" size={24} color={COLORS.white} />
         <Text style={styles.addButtonText}>Nuevo producto</Text>
       </TouchableOpacity>
 
       {/* Lista de Productos */}
-      <FlatList
-        data={menus}
-        keyExtractor={(item) => item.menuId.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        onViewableItemsChanged={handleViewableItemsChanged}
-        viewabilityConfig={{
-          itemVisiblePercentThreshold: 70,
-          waitForInteraction: false,
-        }}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        removeClippedSubviews={true}
-        initialNumToRender={10}
-        showsVerticalScrollIndicator={false}
-      />
+      {products.length > 0 ? (
+        <FlatList
+          data={products}
+          keyExtractor={(item) => item.productId?.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <View style={styles.emptyState}>
+          <Ionicons name="fast-food-outline" size={64} color={COLORS.lightGray} />
+          <Text style={styles.emptyStateTitle}>No hay productos</Text>
+          <Text style={styles.emptyStateText}>
+            Comienza agregando tu primer producto
+          </Text>
+        </View>
+      )}
 
       {/* Modal de Agregar/Editar Producto */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -575,7 +776,7 @@ const FoodMenu = ({ navigation, route }) => {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                  {editingMenuId ? 'Editar Producto' : 'Nuevo Producto'}
+                  {editingProductId ? 'Editar Producto' : 'Nuevo Producto'}
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
@@ -588,7 +789,7 @@ const FoodMenu = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Campos Principales */}
+              {/* Información Básica */}
               <View style={styles.formSection}>
                 <Text style={styles.sectionTitle}>Información Básica</Text>
 
@@ -636,32 +837,32 @@ const FoodMenu = ({ navigation, route }) => {
                   <Text style={styles.label}>Stock disponible *</Text>
                   <View style={styles.stockContainer}>
                     <TouchableOpacity
-                      onPress={() => handleStockChange(parseInt(form.stock) - 1)}
+                      onPress={() => handleStockChange(parseInt(form.generalStock) - 1)}
                       style={styles.stockButton}
-                      disabled={parseInt(form.stock) <= 0}
+                      disabled={parseInt(form.generalStock) <= 0}
                     >
                       <Ionicons
                         name="remove"
                         size={20}
                         color={
-                          parseInt(form.stock) <= 0 ? COLORS.lightGray : COLORS.primary
+                          parseInt(form.generalStock) <= 0 ? COLORS.lightGray : COLORS.primary
                         }
                       />
                     </TouchableOpacity>
                     <TextInput
-                      value={form.stock}
+                      value={form.generalStock}
                       onChangeText={handleStockChange}
                       keyboardType="numeric"
                       style={styles.stockInput}
                     />
                     <TouchableOpacity
-                      onPress={() => handleStockChange(parseInt(form.stock) + 1)}
+                      onPress={() => handleStockChange(parseInt(form.generalStock) + 1)}
                       style={styles.stockButton}
                     >
                       <Ionicons name="add" size={20} color={COLORS.primary} />
                     </TouchableOpacity>
                   </View>
-                  {invalidFields.stock && (
+                  {invalidFields.generalStock && (
                     <Text style={styles.errorText}>El stock no puede ser negativo</Text>
                   )}
                 </View>
@@ -685,7 +886,7 @@ const FoodMenu = ({ navigation, route }) => {
                       style={{ color: COLORS.placeholder }}
                       enabled={false}
                     />
-                    {categories.map((item) => (
+                    {foodCategories.map((item) => (
                       <Picker.Item
                         key={item.value}
                         label={item.label}
@@ -704,7 +905,7 @@ const FoodMenu = ({ navigation, route }) => {
 
               {/* Imagen del producto */}
               <View style={styles.formSection}>
-                <Text style={styles.sectionTitle}>Imagen del Producto *</Text>
+                <Text style={styles.sectionTitle}>Imagen del Producto {!editingProductId && '*'}</Text>
                 <TouchableOpacity
                   onPress={pickImage}
                   style={[
@@ -712,13 +913,13 @@ const FoodMenu = ({ navigation, route }) => {
                     invalidFields.image && styles.invalidInput,
                   ]}
                 >
-                  {imageUri ? (
-                    <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                  {selectedImage ? (
+                    <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
                   ) : (
                     <View style={styles.placeholder}>
                       <Ionicons name="image-outline" size={48} color={COLORS.lightGray} />
                       <Text style={styles.placeholderText}>
-                        Seleccionar imagen del producto
+                        {editingProductId ? 'Cambiar imagen del producto' : 'Seleccionar imagen del producto'}
                       </Text>
                     </View>
                   )}
@@ -782,8 +983,7 @@ const FoodMenu = ({ navigation, route }) => {
                 </View>
 
                 {form.variants.map((variant, index) => (
-                  <View key={index} style={styles.variantCard}>
-                    {/* Header de la variante con botón eliminar */}
+                  <View key={variant.id} style={styles.variantCard}>
                     <View style={styles.variantHeader}>
                       <Text style={styles.variantNumber}>Variante {index + 1}</Text>
                       <TouchableOpacity
@@ -794,30 +994,38 @@ const FoodMenu = ({ navigation, route }) => {
                       </TouchableOpacity>
                     </View>
 
-                    {/* Campos apilados verticalmente */}
                     <View style={styles.variantFields}>
-                      {/* Nombre de la variante */}
                       <View style={styles.variantInputGroup}>
-                        <Text style={styles.variantLabel}>Nombre de la variante</Text>
+                        <Text style={styles.variantLabel}>Tipo de variante</Text>
                         <TextInput
-                          placeholder="Eje: Tamaño grande, Extra queso..."
+                          placeholder="Ej: Tamaño, Color, Sabor..."
                           placeholderTextColor={COLORS.placeholder}
-                          value={variant.name}
-                          onChangeText={(text) => updateVariant(index, 'name', text)}
+                          value={variant.variantType}
+                          onChangeText={(text) => updateVariant(index, 'variantType', text)}
                           style={styles.input}
                         />
                       </View>
 
-                      {/* Precio adicional */}
+                      <View style={styles.variantInputGroup}>
+                        <Text style={styles.variantLabel}>Valor de la variante</Text>
+                        <TextInput
+                          placeholder="Ej: Grande, Rojo, Chocolate..."
+                          placeholderTextColor={COLORS.placeholder}
+                          value={variant.variantValue}
+                          onChangeText={(text) => updateVariant(index, 'variantValue', text)}
+                          style={styles.input}
+                        />
+                      </View>
+
                       <View style={styles.variantInputGroup}>
                         <Text style={styles.variantLabel}>Precio adicional</Text>
                         <TextInput
                           placeholder="$ 0"
                           placeholderTextColor={COLORS.placeholder}
                           keyboardType="numeric"
-                          value={variant.additionalPrice}
+                          value={variant.priceModifier}
                           onChangeText={(text) =>
-                            updateVariant(index, 'additionalPrice', text)
+                            updateVariant(index, 'priceModifier', text)
                           }
                           style={styles.input}
                         />
@@ -839,9 +1047,13 @@ const FoodMenu = ({ navigation, route }) => {
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-                  <Text style={styles.saveButtonText}>
-                    {editingMenuId ? 'Actualizar' : 'Crear Producto'}
-                  </Text>
+                  {loading ? (
+                    <ActivityIndicator size="small" color={COLORS.white} />
+                  ) : (
+                    <Text style={styles.saveButtonText}>
+                      {editingProductId ? 'Actualizar' : 'Crear Producto'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -849,7 +1061,7 @@ const FoodMenu = ({ navigation, route }) => {
         </View>
       </Modal>
 
-      {/* Vista del Producto */}
+      {/* Vista ampliada */}
       <Modal
         visible={viewModalVisible}
         transparent={true}
@@ -858,7 +1070,7 @@ const FoodMenu = ({ navigation, route }) => {
       >
         <View style={styles.viewModalOverlay}>
           <View style={styles.viewModalContent}>
-            {selectedMenu && (
+            {selectedProduct && (
               <>
                 <TouchableOpacity
                   style={styles.closeViewButton}
@@ -868,50 +1080,116 @@ const FoodMenu = ({ navigation, route }) => {
                 </TouchableOpacity>
 
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  {selectedMenu.imageUri ? (
-                    <Image
-                      source={{ uri: selectedMenu.imageUri }}
-                      style={styles.expandedImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.expandedPlaceholder}>
-                      <Ionicons name="image-outline" size={64} color={COLORS.lightGray} />
-                      <Text style={styles.expandedPlaceholderText}>
-                        Imagen no disponible
+                  {/* Carrusel de Imágenes */}
+                  {(() => {
+                    const productImage = getProductImage(selectedProduct.productId);
+                    const images = productImage ? [productImage] : [];
+                    
+                    return images.length > 0 ? (
+                      <View style={styles.carouselContainer}>
+                        <FlatList
+                          data={images}
+                          horizontal
+                          pagingEnabled
+                          showsHorizontalScrollIndicator={false}
+                          keyExtractor={(item, index) => index.toString()}
+                          renderItem={({ item }) => (
+                            <Image
+                              source={{ uri: item }}
+                              style={styles.expandedImage}
+                              resizeMode="cover"
+                            />
+                          )}
+                          onMomentumScrollEnd={onImageScroll}
+                        />
+                        {/* Indicadores del carrusel */}
+                        <View style={styles.carouselIndicators}>
+                          {images.map((_, index) => (
+                            <View
+                              key={index}
+                              style={[
+                                styles.carouselIndicator,
+                                index === currentImageIndex && styles.carouselIndicatorActive
+                              ]}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.expandedPlaceholder}>
+                        <Ionicons name="fast-food-outline" size={64} color={COLORS.lightGray} />
+                        <Text style={styles.expandedPlaceholderText}>
+                          Imagen no disponible
+                        </Text>
+                      </View>
+                    );
+                  })()}
+
+                  <View style={styles.productDetails}>
+                    <Text style={styles.expandedProductName}>
+                      {selectedProduct.name}
+                    </Text>
+                    <Text style={styles.expandedProductPrice}>
+                      ${parseFloat(selectedProduct.price).toFixed(2)}
+                    </Text>
+
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Categoría</Text>
+                      <Text style={styles.detailText}>
+                        {foodCategories.find(
+                          (cat) => cat.value === selectedProduct.category,
+                        )?.label || selectedProduct.category}
                       </Text>
                     </View>
-                  )}
 
-                  <View style={styles.menuDetails}>
-                    <Text style={styles.expandedMenuName}>{selectedMenu.name}</Text>
-                    <Text style={styles.expandedMenuCategory}>
-                      {selectedMenu.category}
-                    </Text>
-                    <Text style={styles.expandedMenuDesc}>
-                      {selectedMenu.description}
-                    </Text>
-
-                    {selectedMenu.ingredients && (
+                    {selectedProduct.ingredients && (
                       <View style={styles.detailSection}>
                         <Text style={styles.detailLabel}>Ingredientes</Text>
-                        <Text style={styles.detailText}>{selectedMenu.ingredients}</Text>
-                      </View>
-                    )}
-
-                    {selectedMenu.preparationTime && (
-                      <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>Tiempo de preparación</Text>
                         <Text style={styles.detailText}>
-                          {selectedMenu.preparationTime} minutos
+                          {selectedProduct.ingredients}
                         </Text>
                       </View>
                     )}
 
-                    <View style={styles.priceContainer}>
-                      <Text style={styles.expandedMenuPrice}>${selectedMenu.price}</Text>
-                      <Text style={styles.stockText}>
-                        {selectedMenu.stock || 0} disponibles
+                    {selectedProduct.preparationTime && (
+                      <View style={styles.detailSection}>
+                        <Text style={styles.detailLabel}>Tiempo de preparación</Text>
+                        <Text style={styles.detailText}>
+                          {selectedProduct.preparationTime} minutos
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Descripción</Text>
+                      <Text style={styles.detailText}>
+                        {selectedProduct.description}
+                      </Text>
+                    </View>
+
+                    {/* Variantes Disponibles */}
+                    {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                      <View style={styles.detailSection}>
+                        <Text style={styles.detailLabel}>
+                          Variantes Disponibles
+                        </Text>
+                        {selectedProduct.variants.map((variant, index) => (
+                          <View key={index} style={styles.variantItem}>
+                            <View style={styles.variantInfo}>
+                              <Text style={styles.variantText}>
+                                {variant.variantType}: {variant.variantValue}
+                                {variant.priceModifier > 0 ? ` (+$${variant.priceModifier})` : ''}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Stock disponible</Text>
+                      <Text style={styles.detailText}>
+                        {selectedProduct.generalStock || 0} unidades
                       </Text>
                     </View>
                   </View>
@@ -922,111 +1200,30 @@ const FoodMenu = ({ navigation, route }) => {
         </View>
       </Modal>
 
-      {/* Modales de Estado (éxito, error, confirmación) */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      {/* Modales de Estado */}
+      <SuccessModal
         visible={successModalVisible}
-        onRequestClose={() => setSuccessModalVisible(false)}
-      >
-        <View style={styles.alertModalOverlay}>
-          <View style={styles.alertModalContent}>
-            <View style={styles.alertIconSuccess}>
-              <Ionicons name="checkmark-circle" size={48} color={COLORS.success} />
-            </View>
-            <Text style={styles.alertTitle}>Éxito</Text>
-            <Text style={styles.alertMessage}>{modalMessage}</Text>
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => setSuccessModalVisible(false)}
-            >
-              <Text style={styles.alertButtonText}>Aceptar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        message={modalMessage}
+        onClose={() => setSuccessModalVisible(false)}
+      />
 
-      {/* Error Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      <ErrorModal
         visible={errorModalVisible}
-        onRequestClose={() => setErrorModalVisible(false)}
-      >
-        <View style={styles.alertModalOverlay}>
-          <View style={styles.alertModalContent}>
-            <View style={styles.alertIconError}>
-              <Ionicons name="close-circle" size={48} color={COLORS.error} />
-            </View>
-            <Text style={styles.alertTitle}>Error</Text>
-            <Text style={styles.alertMessage}>{modalMessage}</Text>
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => setErrorModalVisible(false)}
-            >
-              <Text style={styles.alertButtonText}>Aceptar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        message={modalMessage}
+        onClose={() => setErrorModalVisible(false)}
+      />
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      <DeleteConfirmModal
         visible={deleteConfirmModalVisible}
-        onRequestClose={() => setDeleteConfirmModalVisible(false)}
-      >
-        <View style={styles.alertModalOverlay}>
-          <View style={styles.alertModalContent}>
-            <View style={styles.alertIconWarning}>
-              <Ionicons name="warning" size={48} color={COLORS.warning} />
-            </View>
-            <Text style={styles.alertTitle}>Confirmar</Text>
-            <Text style={styles.alertMessage}>
-              ¿Estás seguro de que deseas eliminar este producto?
-            </Text>
-            <View style={styles.confirmActions}>
-              <TouchableOpacity
-                style={[styles.confirmButton, styles.cancelConfirmButton]}
-                onPress={() => setDeleteConfirmModalVisible(false)}
-              >
-                <Text style={styles.cancelConfirmButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmButton, styles.deleteConfirmButton]}
-                onPress={confirmDelete}
-              >
-                <Text style={styles.deleteConfirmButtonText}>Eliminar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onCancel={() => setDeleteConfirmModalVisible(false)}
+        onConfirm={confirmDelete}
+      />
 
-      {/* Permission Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      <PermissionModal
         visible={permissionModalVisible}
-        onRequestClose={() => setPermissionModalVisible(false)}
-      >
-        <View style={styles.alertModalOverlay}>
-          <View style={styles.alertModalContent}>
-            <View style={styles.alertIconWarning}>
-              <Ionicons name="alert-circle" size={48} color={COLORS.warning} />
-            </View>
-            <Text style={styles.alertTitle}>Permiso requerido</Text>
-            <Text style={styles.alertMessage}>{modalMessage}</Text>
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => setPermissionModalVisible(false)}
-            >
-              <Text style={styles.alertButtonText}>Entendido</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        message={modalMessage}
+        onClose={() => setPermissionModalVisible(false)}
+      />
     </Animated.View>
   );
 };
@@ -1056,7 +1253,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   header: {
     alignItems: 'center',
     paddingVertical: 24,
@@ -1106,15 +1302,15 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     marginTop: 4,
     textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
   },
   changeLogoText: {
     fontSize: 12,
     color: COLORS.primary,
     marginTop: 8,
     fontWeight: '500',
+    fontFamily: 'Poppins-Medium',
   },
-
-  // Botón Principal
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1124,33 +1320,116 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 12,
     shadowColor: COLORS.primary,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
-  },
-  addButtonDisabled: {
-    backgroundColor: COLORS.lightGray,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   addButtonText: {
     color: COLORS.white,
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
+    fontFamily: 'Poppins-SemiBold',
   },
-
-  // Lista
   listContent: {
     padding: 16,
     paddingBottom: 20,
   },
-
-  // Modal Principal
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: 16,
+    marginBottom: 8,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    lineHeight: 20,
+    fontFamily: 'Poppins-Regular',
+  },
+  productCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  productImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  productImagePlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: COLORS.lightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 10,
+    color: COLORS.gray,
+    marginTop: 4,
+    fontFamily: 'Poppins-Regular',
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  productCategory: {
+    fontSize: 14,
+    color: COLORS.gray,
+    marginBottom: 4,
+    fontFamily: 'Poppins-Regular',
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginBottom: 4,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  productStock: {
+    fontSize: 12,
+    color: COLORS.gray,
+    marginBottom: 2,
+    fontFamily: 'Poppins-Regular',
+  },
+  productTime: {
+    fontSize: 12,
+    color: COLORS.gray,
+    fontFamily: 'Poppins-Regular',
+  },
+  productActions: {
+    justifyContent: 'space-between',
+  },
+  actionButton: {
+    padding: 8,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1174,12 +1453,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: COLORS.text,
+    fontFamily: 'Poppins-SemiBold',
   },
   closeButton: {
     padding: 4,
   },
-
-  // Formulario
   formSection: {
     padding: 20,
     borderBottomWidth: 1,
@@ -1195,6 +1473,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
+    fontFamily: 'Poppins-SemiBold',
   },
   input: {
     borderWidth: 1,
@@ -1205,6 +1484,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     backgroundColor: COLORS.white,
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
   },
   textArea: {
     height: 80,
@@ -1219,12 +1499,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.text,
     marginBottom: 8,
+    fontFamily: 'Poppins-Medium',
   },
   inputGroup: {
     marginBottom: 12,
   },
-
-  // Stock Controls
   stockContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1245,15 +1524,15 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 14,
     fontWeight: '500',
+    fontFamily: 'Poppins-Medium',
   },
   errorText: {
     color: COLORS.error,
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+    fontFamily: 'Poppins-Regular',
   },
-
-  // Picker
   pickerContainer: {
     borderWidth: 1,
     borderColor: COLORS.lightGray,
@@ -1266,6 +1545,7 @@ const styles = StyleSheet.create({
     height: 55,
     color: COLORS.text,
     paddingLeft: 12,
+    fontFamily: 'Poppins-Regular',
   },
   pickerIcon: {
     position: 'absolute',
@@ -1273,8 +1553,6 @@ const styles = StyleSheet.create({
     top: 15,
     pointerEvents: 'none',
   },
-
-  // Image Picker
   imagePicker: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1297,13 +1575,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.background,
   },
-  placeholderText: {
-    color: COLORS.placeholder,
-    fontSize: 12,
-    marginTop: 8,
-  },
-
-  // Variantes
   addOptionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1314,6 +1585,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 4,
+    fontFamily: 'Poppins-Medium',
   },
   variantCard: {
     backgroundColor: COLORS.background,
@@ -1322,14 +1594,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   variantHeader: {
     flexDirection: 'row',
@@ -1344,6 +1608,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
+    fontFamily: 'Poppins-SemiBold',
   },
   removeVariantButton: {
     padding: 4,
@@ -1351,15 +1616,17 @@ const styles = StyleSheet.create({
   variantFields: {
     gap: 12,
   },
+  variantInputGroup: {
+    marginBottom: 8,
+  },
   variantLabel: {
     fontSize: 12,
     fontWeight: '500',
     color: COLORS.text,
     marginBottom: 6,
     marginLeft: 4,
+    fontFamily: 'Poppins-Medium',
   },
-
-  // Botones de Acción
   modalActions: {
     flexDirection: 'row',
     padding: 20,
@@ -1377,6 +1644,7 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     fontWeight: '600',
     fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
   },
   saveButton: {
     flex: 2,
@@ -1384,14 +1652,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
+    minHeight: 50,
+    justifyContent: 'center',
   },
   saveButtonText: {
     color: COLORS.white,
     fontWeight: '600',
     fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
   },
-
-  // Vista Ampliada
   viewModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',
@@ -1402,20 +1671,42 @@ const styles = StyleSheet.create({
   },
   closeViewButton: {
     position: 'absolute',
-    top: 50,
+    top: 30,
     right: 20,
     zIndex: 10,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
     padding: 8,
   },
+  carouselContainer: {
+    position: 'relative',
+  },
+  carouselIndicators: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carouselIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
+  },
+  carouselIndicatorActive: {
+    backgroundColor: COLORS.white,
+  },
   expandedImage: {
-    width: '100%',
-    height: 300,
+    width: Dimensions.get('window').width,
+    height: 380,
   },
   expandedPlaceholder: {
     width: '100%',
-    height: 300,
+    height: 380,
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1424,27 +1715,24 @@ const styles = StyleSheet.create({
     color: COLORS.placeholder,
     marginTop: 16,
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
   },
-  menuDetails: {
+  productDetails: {
     padding: 24,
   },
-  expandedMenuName: {
+  expandedProductName: {
     fontSize: 28,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 8,
+    fontFamily: 'Poppins-Bold',
   },
-  expandedMenuCategory: {
-    fontSize: 16,
+  expandedProductPrice: {
+    fontSize: 24,
+    fontWeight: '700',
     color: COLORS.primary,
-    fontWeight: '500',
-    marginBottom: 16,
-  },
-  expandedMenuDesc: {
-    fontSize: 16,
-    color: COLORS.textLight,
-    lineHeight: 24,
     marginBottom: 24,
+    fontFamily: 'Poppins-Bold',
   },
   detailSection: {
     marginBottom: 20,
@@ -1454,33 +1742,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 4,
+    fontFamily: 'Poppins-SemiBold',
   },
   detailText: {
     fontSize: 14,
     color: COLORS.textLight,
     lineHeight: 20,
+    fontFamily: 'Poppins-Regular',
   },
-  priceContainer: {
+  variantItem: {
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  variantInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
+    gap: 12,
   },
-  expandedMenuPrice: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  stockText: {
+  variantText: {
     fontSize: 14,
-    color: COLORS.textLight,
-    fontWeight: '500',
+    color: COLORS.text,
+    fontFamily: 'Poppins-Regular',
   },
-
-  // Modales de Alerta
   alertModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1496,10 +1781,7 @@ const styles = StyleSheet.create({
     maxWidth: 350,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
@@ -1519,6 +1801,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 8,
     textAlign: 'center',
+    fontFamily: 'Poppins-Bold',
   },
   alertMessage: {
     fontSize: 16,
@@ -1526,6 +1809,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     color: COLORS.textLight,
     lineHeight: 22,
+    fontFamily: 'Poppins-Regular',
   },
   alertButton: {
     paddingVertical: 12,
@@ -1539,6 +1823,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
   },
   confirmActions: {
     flexDirection: 'row',
@@ -1558,6 +1843,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
   },
   deleteConfirmButton: {
     backgroundColor: COLORS.error,
@@ -1566,6 +1852,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
   },
 });
 
