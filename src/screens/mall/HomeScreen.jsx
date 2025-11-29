@@ -19,7 +19,7 @@ const categories = [
   { id: 2, title: 'Moda & Calzado', emoji: '👟👕', sector: 'fashion' },
   { id: 3, title: 'Electrónica & Tecnología', emoji: '📱💻', sector: 'technology' },
   { id: 4, title: 'Ferreteria', emoji: '🧱 🛠', sector: 'hardware' },
-  { id: 5, title: 'Farmacia', emoji: '💊📝', sector: 'pharmacy' },
+  //{ id: 5, title: 'Farmacia', emoji: '💊📝', sector: 'pharmacy' },
 ];
 
 const BOTTOM_TAB_HEIGHT = 80;

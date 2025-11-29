@@ -39,19 +39,29 @@ export const getBusinessByUserId = async (userId) => {
   }
 };
 
-export const getAllBusinesses = async (page = 0, size = 10) => {
+export const getAllBusinesses = async (sector, page = 0, size = 10, filters = {}) => {
+  const params = new URLSearchParams({
+    sector: sector,
+    page: page.toString(),
+    size: size.toString(),
+  });
+
+  // 🎯 Solo enviar coordenadas GPS
+  if (filters.lat && filters.lng) {
+    params.append('lat', filters.lat.toString());
+    params.append('lng', filters.lng.toString());
+  }
+
+  const url = `${API.BUSINESS.GET_ALL_BUSINESSES_BY_SECTOR}?${params.toString()}`;
+  console.log('📍 URL de búsqueda:', url);
+
   try {
-    const response = await fetch(`${API.BUSINESS.GET_ALL}?page=${page}&size=${size}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetch(url);
+
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Error ${response.status}: ${errorBody}`);
-      throw new Error('Error al obtener todos los negocios');
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
+
     return await response.json();
   } catch (error) {
     console.error('getAllBusinesses error:', error);
@@ -145,5 +155,42 @@ export const updatePaymentMethods = async (paymentData) => {
   } catch (error) {
     console.error('❌ Error updating payment method:', error);
     throw error;
+  }
+};
+
+export const findNearbyZones = async (lat, lng, maxDistanceKm = 50) => {
+  try {
+    if (!lat || !lng || typeof lat !== 'number' || typeof lng !== 'number') {
+      console.error('❌ Coordenadas inválidas:', { lat, lng });
+      return [];
+    }
+    const params = new URLSearchParams({
+      lat: lat.toString(),
+      lng: lng.toString(),
+      maxDistanceKm: maxDistanceKm.toString(),
+    });
+
+    const url = `${API.BUSINESS.GET_NEARBY_ZONES}?${params.toString()}`;
+
+    console.log('📍 Buscando zonas en URL:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Error ${response.status} buscando zonas:`, await response.text());
+      return [];
+    }
+
+    const zones = await response.json();
+    console.log(`✅ Zonas encontradas: ${zones.length}`);
+    return zones;
+  } catch (error) {
+    console.error('❌ Error en findNearbyZones:', error.message);
+    return [];
   }
 };

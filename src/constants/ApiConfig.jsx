@@ -17,9 +17,10 @@ export const API = {
     UPDATE_BUSINESS_BY_USER: (userId) => `${BASE_URL}/business/updateBusiness/${userId}`,
     UPDATE_LOGO_BUSINESS_BY_ID: (businessId) => `${BASE_URL}/business/updateLogo/${businessId}`,
     GET_BUSINESS_LOGO_BY_ID: (businessId) => `${BASE_URL}/business/getLogo/${businessId}`,
-    GET_ALL: `${BASE_URL}/business/getAll`,
+    GET_ALL_BUSINESSES_BY_SECTOR: `${BASE_URL}/business/getAllBusinessBySector`,
     GET_DASHBOARD: (businessId) => `${BASE_URL}/business/${businessId}/dashboard`,
     UPDATE_PAYMENT_METHODS: `${BASE_URL}/business/updatePaymentMethods`,
+    GET_NEARBY_ZONES: `${BASE_URL}/business/getNearbyZones`,
   },
   PRODUCTS: {
     UPSERT: `${BASE_URL}/products/upsert`,

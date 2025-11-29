@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
+import { LocationProvider } from './src/contexts/LocationContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppNavigation from './src/navigation/AppNavigation';
@@ -21,11 +22,13 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <CartProvider>
-        <NavigationContainer>
-          <AppNavigation />
-        </NavigationContainer>
-      </CartProvider>
+      <LocationProvider>
+        <CartProvider>
+          <NavigationContainer>
+            <AppNavigation />
+          </NavigationContainer>
+        </CartProvider>
+      </LocationProvider>
     </SafeAreaProvider>
   );
 }

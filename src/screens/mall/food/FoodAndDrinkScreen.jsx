@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   TouchableHighlight,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLOR } from '../../../constants/Color';
@@ -17,35 +18,111 @@ import SearchBar from '../../../components/SearchBar';
 import ImageWithFallback from '../../../components/ImageWithFallback';
 import { preloadImage } from '../../../components/ImageCache';
 import useScrollHandler from '../../../components/HandleScroll';
+import { useLocation } from '../../../contexts/LocationContext';
 
 const FoodAndDrinkScreen = ({ navigation, route }) => {
   const { sector } = route.params || {};
+  const {
+    userLocation,
+    isLoading: locationLoading,
+    getCurrentLocation,
+    locationError: contextLocationError,
+  } = useLocation();
+
   const [businesses, setBusinesses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [zoneError, setZoneError] = useState(null);
+
   const { handleScroll, isScrolling, cleanup } = useScrollHandler();
   const PAGE_SIZE = 10;
 
-  const loadBusinesses = async (pageNumber = 0, refresh = false) => {
-    if (loading) return; // evitar cargas paralelas
-    setLoading(true);
-    try {
-      const data = await getAllBusinesses(pageNumber, PAGE_SIZE);
+  // Cargar negocios automáticamente cuando hay ubicación
+  useEffect(() => {
+    console.log('🚀 mounted - sector:', sector);
 
-      // 🚀 Paso 1: construir URLs solo para negocios con menú
+    if (userLocation) {
+      loadBusinesses(0, true);
+    } else {
+      // Si no hay ubicación, obtenerla automáticamente
+      getCurrentLocationAutomatically();
+    }
+
+    return () => {
+      if (typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
+  }, [sector, userLocation]);
+
+  const getCurrentLocationAutomatically = async () => {
+    try {
+      console.log('📍 Obteniendo ubicación automáticamente...');
+      await getCurrentLocation();
+    } catch (error) {
+      console.error('Error obteniendo ubicación automática:', error);
+      setZoneError('No se pudo obtener tu ubicación automáticamente');
+      // Cargar negocios sin filtro de ubicación como fallback
+      loadBusinesses(0, true);
+    }
+  };
+
+  const loadBusinesses = async (pageNumber = 0, refresh = false) => {
+    if (loading) return;
+    setLoading(true);
+
+    try {
+      // 🎯 Usar GPS cuando esté disponible
+      const filters = {};
+
+      if (userLocation) {
+        filters.lat = userLocation.latitude;
+        filters.lng = userLocation.longitude;
+        console.log(`🎯 Filtrando por GPS automático: (${filters.lat}, ${filters.lng})`,);
+      } else {
+        console.log('🎯 Sin filtro de ubicación - mostrando todos los negocios',);
+      }
+
+      const data = await getAllBusinesses(sector, pageNumber, PAGE_SIZE, filters);
+
+      if (!data || !data.content) {
+        console.error('❌ Data o data.content es undefined');
+        setBusinesses([]);
+        return;
+      }
+
+      console.log(`📦 Datos recibidos: ${data.content.length} negocios`);
+
+      // Solo filtrar por productos
       const businessesWithUrls = data.content
-        .filter((business) => business.menu && business.menu.length > 0)
+        .filter((business) => {
+          if (!business) {
+            console.log('⚠️ Business undefined en data.content');
+            return false;
+          }
+
+          if (!business.products || !Array.isArray(business.products) || business.products.length === 0) {
+            console.log(`⚠️ Negocio sin productos: ${business.fullName}`);
+            return false;
+          }
+
+          return true;
+        })
         .map((business) => {
           const logoUrl = `${API.BUSINESS.GET_BUSINESS_LOGO_BY_ID(business.businessId)}?v=${business.updatedAt}`;
-          const menusWithImages = (business.menu || []).map((menu) => ({
-            ...menu,
-            imageUrl: `${API.MENU.GET_IMAGE_BY_MENU_ID(menu.menuId)}?v=${menu.updatedAt}`,
+
+          const productsWithImages = business.products.map((product) => ({
+            ...product,
+            imageUrl: `${API.PRODUCTS.GET_IMAGE_BY_PRODUCT(product.productId)}?v=${product.updatedAt}`,
           }));
-          return { ...business, logoUrl, menus: menusWithImages };
+
+          return { ...business, logoUrl, products: productsWithImages };
         });
+
+      console.log(`✅ Negocios disponibles: ${businessesWithUrls.length}`);
 
       if (refresh) {
         setBusinesses(businessesWithUrls);
@@ -53,30 +130,40 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
         setBusinesses((prev) => [...prev, ...businessesWithUrls]);
       }
 
-      setPage(data.page);
+      setPage(data.page || 0);
       setHasMore(!data.last);
+      setZoneError(null);
 
-      // 🚀 Paso 2: prefetch en background (no bloquea UI)
+      // Prefetch imágenes
       setTimeout(() => {
         const urls = [];
         businessesWithUrls.forEach((b) => {
-          urls.push(b.logoUrl);
-          (b.menus || []).forEach((m) => urls.push(m.imageUrl));
+          if (b.logoUrl) urls.push(b.logoUrl);
+          if (b.products) {
+            b.products.forEach((p) => {
+              if (p.imageUrl) urls.push(p.imageUrl);
+            });
+          }
         });
-        Promise.all(urls.map((u) => preloadImage(u))).catch(() => {});
+        if (urls.length > 0) {
+          Promise.all(urls.map((u) => preloadImage(u))).catch(() => {});
+        }
       }, 0);
     } catch (error) {
-      console.error('Error cargando negocios:', error);
+      console.error('Error loading businesses:', error);
+      setZoneError('Error cargando negocios. Por favor, intenta de nuevo.');
+      setBusinesses([]);
     } finally {
       setLoading(false);
       if (refresh) setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    loadBusinesses(0, true);
-    return cleanup; // Cleanup on unmount
-  }, []);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Al refrescar, también actualizar la ubicación
+    getCurrentLocationAutomatically();
+  }, [userLocation]);
 
   const handleLoadMore = () => {
     if (hasMore && !loading && !isScrolling) {
@@ -84,16 +171,13 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadBusinesses(0, true);
-  };
-
   const filteredBusinesses = businesses.filter((business) => {
-    const term = searchTerm.toLowerCase();
-    const menuItems = business.menus || [];
+    if (!searchTerm.trim()) return true;
 
-    const matchesMenu = menuItems.some(
+    const term = searchTerm.toLowerCase();
+    const productItems = business.products || [];
+
+    const matchesProduct = productItems.some(
       (item) =>
         item.name?.toLowerCase().includes(term) ||
         item.description?.toLowerCase().includes(term) ||
@@ -104,14 +188,22 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
       business.fullName?.toLowerCase().includes(term) ||
       business.description?.toLowerCase().includes(term) ||
       business.category?.toLowerCase().includes(term) ||
-      matchesMenu
+      matchesProduct
     );
   });
 
   const EmptyList = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="search-outline" size={48} color="#ccc" />
-      <Text style={styles.emptyText}>No se encontraron resultados</Text>
+      <Text style={styles.emptyText}>
+        {userLocation ? 'No hay negocios cerca de tu ubicación actual' : 'No se pudo determinar tu ubicación'}
+      </Text>
+      <TouchableOpacity
+        style={styles.retryButton}
+        onPress={getCurrentLocationAutomatically}
+      >
+        <Text style={styles.retryButtonText}>Reintentar ubicación</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -143,28 +235,63 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
 
         <Text style={styles.description}>{business.description}</Text>
 
-        {(business.menus || []).slice(0, 2).map((menu) => (
-          <View key={menu.menuId} style={styles.menuItem}>
-            <ImageWithFallback src={menu.imageUrl} style={styles.menuImage} />
-            <View style={styles.menuInfo}>
-              <Text style={styles.menuName}>{menu.name}</Text>
-              <Text style={styles.menuPrice}>${menu.price}</Text>
+        {/* Mostrar productos */}
+        {business.products.slice(0, 2).map((product) => (
+          <View key={product.productId} style={styles.productItem}>
+            <ImageWithFallback
+              src={product.imageUrl}
+              style={styles.productImage}
+            />
+            <View style={styles.productInfo}>
+              <Text style={styles.productName}>{product.name}</Text>
+              <Text style={styles.productDescription}>
+                {product.description}
+              </Text>
+              <Text style={styles.productPrice}>${product.price}</Text>
             </View>
           </View>
         ))}
 
-        {(business.menus?.length || 0) > 2 && (
-          <Text style={styles.moreText}>... y más</Text>
+        {business.products.length > 2 && (
+          <Text style={styles.moreText}>
+            ... y {business.products.length - 2} productos más
+          </Text>
         )}
       </View>
     </TouchableHighlight>
+  );
+
+  const LocationHeader = () => (
+    <View style={styles.locationHeader}>
+      <View style={styles.locationInfo}>
+        <Ionicons name="location" size={16} color={COLOR.green} />
+        <Text style={styles.locationText}>
+          {userLocation ? 'Mostrando negocios cerca de ti' : 'Obteniendo tu ubicación...'}
+        </Text>
+      </View>
+
+      {(zoneError || contextLocationError) && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning" size={14} color={COLOR.orange} />
+          <Text style={styles.zoneError}>
+            {zoneError || contextLocationError}
+          </Text>
+        </View>
+      )}
+
+      <Text style={styles.businessCount}>
+        {businesses.length} negocio(s) disponible(s)
+      </Text>
+    </View>
   );
 
   if (loading && businesses.length === 0) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={COLOR.green} />
-        <Text>Cargando negocios...</Text>
+        <Text style={styles.loadingText}>
+          {userLocation ? 'Cargando negocios...' : 'Obteniendo tu ubicación...'}
+        </Text>
       </View>
     );
   }
@@ -173,32 +300,43 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <SearchBar
         value={searchTerm}
-        onChangeText={(text) => {
-          setSearchTerm(text);
-          if (text.trim() === '') {
-            loadBusinesses(0, true);
-          }
-        }}
+        onChangeText={setSearchTerm}
+        placeholder="Buscar negocios, productos..."
+        onClear={() => setSearchTerm('')}
       />
+
+      <LocationHeader />
+
       <FlatList
         data={filteredBusinesses}
         renderItem={renderBusinessCard}
         keyExtractor={(item) => item.businessId.toString()}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        contentContainerStyle={{ paddingBottom: 170, flexGrow: 1 }}
+        contentContainerStyle={styles.listContent}
         ListFooterComponent={
-          loading ? <ActivityIndicator size="small" color={COLOR.green} /> : null
+          loading && businesses.length > 0 ? (
+            <ActivityIndicator
+              size="small"
+              color={COLOR.green}
+              style={styles.footerLoader}
+            />
+          ) : null
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[COLOR.green]}
+            tintColor={COLOR.green}
+          />
         }
         ListEmptyComponent={!loading && <EmptyList />}
         windowSize={5} // Reduces the number of off-screen rendered items
         maxToRenderPerBatch={5} // Limits the number of rendered items per batch
         updateCellsBatchingPeriod={100} // Group UI updates
         removeClippedSubviews={Platform.OS === 'android'} // Delete off-screen views
-        initialNumToRender={5} // Initial number of elements to render
+        initialNumToRender={5} // Initial items to render
         onScroll={handleScroll}
         scrollEventThrottle={150} // Throttle scroll events for better performance
       />
@@ -208,98 +346,184 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 15,
+    flex: 1,
     backgroundColor: COLOR.lightGray,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLOR.background,
+  },
+  loadingText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+    color: COLOR.gray,
+    marginTop: 16,
+  },
+  listContent: {
+    padding: 15,
+    paddingBottom: 170,
+    flexGrow: 1,
   },
   businessCard: {
-    marginBottom: 24,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#e0e0e0',
     borderRadius: 12,
-    padding: 12,
-    elevation: 2,
+    padding: 16,
     backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    elevation: 3,
   },
   logo: {
     width: '100%',
     height: 160,
     resizeMode: 'cover',
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   businessName: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 18,
+    lineHeight: 24,
+    color: COLOR.darkGray,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   statusBadge: {
-    borderRadius: 10,
+    borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   statusText: {
-    fontFamily: 'Poppins-Regular',
+    fontFamily: 'Poppins-Medium',
     color: '#fff',
-    fontSize: 11,
+    fontSize: 12,
   },
   description: {
-    marginBottom: 8,
-    color: '#555',
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+    lineHeight: 20,
   },
-  menuItem: {
+  productItem: {
     flexDirection: 'row',
     marginVertical: 8,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  menuImage: {
+  productImage: {
     width: 60,
     height: 60,
-    borderRadius: 6,
+    borderRadius: 8,
     marginRight: 12,
   },
-  menuInfo: {
+  productInfo: {
     flex: 1,
   },
-  menuName: {
+  productName: {
+    fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
-    fontWeight: '500',
+    color: COLOR.darkGray,
+    marginBottom: 2,
   },
-  menuPrice: {
+  productDescription: {
+    fontFamily: 'Poppins-Regular',
     fontSize: 14,
-    color: '#888',
+    color: '#666',
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  productPrice: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    color: COLOR.green,
   },
   moreText: {
-    marginTop: 4,
+    marginTop: 8,
+    fontFamily: 'Poppins-Regular',
     fontStyle: 'italic',
     color: '#888',
     fontSize: 14,
+    textAlign: 'center',
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 50,
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
   },
   emptyText: {
-    marginTop: 10,
+    fontFamily: 'Poppins-Regular',
     fontSize: 16,
     color: '#999',
-    fontWeight: '500',
+    marginTop: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: COLOR.green,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: COLOR.white,
+  },
+  locationHeader: {
+    padding: 15,
+    paddingBottom: 8,
+    backgroundColor: COLOR.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLOR.lightGray,
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 15,
+    color: COLOR.darkGray,
+    marginLeft: 8,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#FFF9F5',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: COLOR.orange,
+  },
+  zoneError: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    color: COLOR.orange,
+    marginLeft: 6,
+    flex: 1,
+  },
+  businessCount: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    color: COLOR.green,
+    marginTop: 8,
+  },
+  footerLoader: {
+    marginVertical: 20,
   },
 });
 
