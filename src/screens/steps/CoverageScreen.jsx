@@ -24,6 +24,7 @@ export default function CoverageScreen({ navigation, route }) {
   const { form, locationData } = route.params || {};
   const sector = form?.sector;
 
+  const [validationModalVisible, setValidationModalVisible] = useState(false);
   const [homeDeliveryEnabled, setHomeDeliveryEnabled] = useState(false);
   const [pickupEnabled, setPickupEnabled] = useState(false);
   const [deliveryCentersEnabled, setDeliveryCentersEnabled] = useState(false);
@@ -213,6 +214,11 @@ export default function CoverageScreen({ navigation, route }) {
   };
 
   const handleNext = () => {
+    if (homeDeliveryEnabled && zones.length === 0) {
+      setValidationModalVisible(true);
+      return;
+    }
+
     navigation.navigate('Commission', {
       form,
       locationData,
@@ -608,7 +614,7 @@ export default function CoverageScreen({ navigation, route }) {
               </Text>
 
               <Text style={styles.infoModalSubtext}>
-                Podrás configurar las zonas de cobertura y tarifas de envío en los siguientes pasos.
+                Podrás configurar las tarifas de envío en los siguientes pasos.
               </Text>
             </View>
 
@@ -629,6 +635,75 @@ export default function CoverageScreen({ navigation, route }) {
                 accessibilityHint="Confirma la activación de entrega a domicilio"
               >
                 <Text style={styles.infoModalConfirmText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de validación para zonas requeridas */}
+      <Modal
+        visible={validationModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setValidationModalVisible(false)}
+      >
+        <View style={styles.validationModalContainer}>
+          <View style={styles.validationModalContent}>
+            <View style={styles.validationModalHeader}>
+              <View style={styles.validationIconContainer}>
+                <Feather name="target" size={28} color={COLOR.green} />
+              </View>
+              <Text style={styles.validationModalTitle}>Configura tu zona de entrega</Text>
+            </View>
+
+            <View style={styles.validationModalBody}>
+              <Text style={styles.validationModalText}>
+                Para ofrecer entregas a domicilio, necesitas configurar al menos una zona de cobertura.
+                Esto te permitirá recibir pedidos de clientes en el área que definas.
+              </Text>
+
+              <Text style={styles.validationModalSubtext}>
+                Al agregar una zona, te comprometes a entregar los productos a tus clientes dentro de esa área.
+                Es un paso esencial para construir confianza y garantizar una buena experiencia.
+              </Text>
+
+              <View style={styles.validationInfoBox}>
+                <Feather name="check-circle" size={16} color={COLOR.green} />
+                <Text style={styles.validationInfoText}>
+                  Los clientes verán tu negocio cuando estén dentro de tu zona configurada
+                </Text>
+              </View>
+
+              <View style={styles.validationInfoBox}>
+                <Feather name="check-circle" size={16} color={COLOR.green} />
+                <Text style={styles.validationInfoText}>
+                  Podrás ajustar tus zonas y tarifas en cualquier momento desde la configuración
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.validationModalFooter}>
+              <TouchableOpacity
+                style={styles.validationModalSecondaryButton}
+                onPress={() => setValidationModalVisible(false)}
+                accessibilityLabel="Configurar después"
+                accessibilityHint="Cierra el modal para configurar la zona más tarde"
+              >
+                <Text style={styles.validationModalSecondaryText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.validationModalPrimaryButton}
+                onPress={() => {
+                  setValidationModalVisible(false);
+                  openModal('zones');
+                }}
+                accessibilityLabel="Agregar zona ahora"
+                accessibilityHint="Abre el modal para agregar una zona de cobertura"
+              >
+                <Feather name="plus" size={18} color="#fff" />
+                <Text style={styles.validationModalPrimaryText}>Agregar zona</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -767,6 +842,121 @@ const styles = StyleSheet.create({
   },
   removeChipButton: {
     padding: 2,
+  },
+
+  validationModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  validationModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 0,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  validationModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomColor: '#E5E7EB',
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  validationIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0, 204, 134, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  validationModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+  },
+  validationModalBody: {
+    padding: 20,
+  },
+  validationModalText: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 22,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  validationModalSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  validationInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F0F9F5',
+    borderColor: '#D1FAE5',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+  validationInfoText: {
+    color: '#065F46',
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 18,
+  },
+  validationModalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    borderTopColor: '#E5E7EB',
+    borderTopWidth: 1,
+  },
+  validationModalSecondaryButton: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  validationModalSecondaryText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  validationModalPrimaryButton: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: COLOR.green,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  validationModalPrimaryText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
 
   // Estilos del Modal de zonas/puntos

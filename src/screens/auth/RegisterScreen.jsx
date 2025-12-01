@@ -319,8 +319,8 @@ const RegisterScreen = ({ navigation }) => {
                   enabled={false}
                   color="#9e9e9eff"
                 />
-                <Picker.Item label="Cliente" value="ROLE_CUSTOMER" />
-                <Picker.Item label="Negocio" value="ROLE_BUSINESS" />
+                <Picker.Item label="👤 Cliente" value="ROLE_CUSTOMER" />
+                <Picker.Item label="🏪 Negocio" value="ROLE_BUSINESS" />
               </Picker>
               <Ionicons
                 name="chevron-down"

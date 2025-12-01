@@ -500,8 +500,11 @@ export default function CommissionScreen({ navigation, route }) {
                     Sin configuraciones de comisión
                   </Text>
                   <Text style={styles.emptyStateText}>
-                    No hay zonas de entrega o puntos de recogida configurados.
-                    Puedes continuar con el registro.
+                    Actualmente no tienes zonas de entrega ni puntos de recogida configurados.
+                    Puedes avanzar con el registro, pero para que tu negocio sea visible y
+                    comiences a recibir pedidos, necesitarás agregar al menos una zona de
+                    cobertura. Podrás configurar estas zonas y sus tarifas correspondientes
+                    en cualquier momento desde tu panel de administración.
                   </Text>
                 </View>
               )}
@@ -737,9 +740,9 @@ const styles = StyleSheet.create({
   },
 
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#6B7280',
-    textAlign: 'center',
+    textAlign: 'justify',
     lineHeight: 20,
   },
 
