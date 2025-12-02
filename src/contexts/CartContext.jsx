@@ -39,7 +39,7 @@ export const CartProvider = ({ children }) => {
   }, [cart]);
 
   // Agregar, actualizar o eliminar un producto del carrito
-  const addToCart = (businessId, menuId, quantity, businessInfo = null) => {
+  const addToCart = (businessId, productId, quantity, businessInfo = null) => {
     setCart((prevCart) => {
       const currentBusiness = prevCart[businessId] || {
         business: businessInfo,
@@ -55,9 +55,9 @@ export const CartProvider = ({ children }) => {
       const updatedItems = { ...currentBusiness.items };
 
       if (quantity > 0) {
-        updatedItems[menuId] = quantity;
+        updatedItems[productId] = quantity;
       } else {
-        delete updatedItems[menuId];
+        delete updatedItems[productId];
       }
 
       return {
@@ -71,12 +71,12 @@ export const CartProvider = ({ children }) => {
   };
 
   // Eliminar un producto específico
-  const removeFromCart = (businessId, menuId) => {
+  const removeFromCart = (businessId, productId) => {
     setCart((prevCart) => {
       if (!prevCart[businessId]) return prevCart;
 
       const updatedItems = { ...prevCart[businessId].items };
-      delete updatedItems[menuId];
+      delete updatedItems[productId];
 
       return {
         ...prevCart,
@@ -107,8 +107,7 @@ export const CartProvider = ({ children }) => {
   const getTotalItems = (businessId) => {
     if (!cart[businessId]?.items) return 0;
     return Object.values(cart[businessId].items).reduce(
-      (sum, qty) => sum + qty,
-      0,
+      (sum, qty) => sum + qty, 0,
     );
   };
 

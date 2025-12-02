@@ -7,8 +7,11 @@ const FoodShoppingCart = ({ item, actions }) => {
     <View style={styles.itemRow}>
       <View style={{ flex: 1 }}>
         <Text style={styles.itemName}>{item.name}</Text>
-        {item.specifications && (
-          <Text style={styles.itemSpecs}>{item.specifications}</Text>
+        {item.description && (
+          <Text style={styles.itemSpecs}>{item.description}</Text>
+        )}
+        {item.ingredients && (
+          <Text style={styles.itemIngredients}>Ingredientes: {item.ingredients}</Text>
         )}
         <Text style={styles.itemDetails}>
           {item.quantity} × ${item.price.toFixed(2)} = ${(item.price * item.quantity).toFixed(2)}
@@ -40,6 +43,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLOR.gray,
     fontStyle: 'italic',
+    marginBottom: 2,
+  },
+  itemIngredients: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 11,
+    color: COLOR.gray,
+    marginBottom: 4,
   },
   itemDetails: {
     fontFamily: 'Poppins-SemiBold',

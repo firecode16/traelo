@@ -31,7 +31,7 @@ const MapModal = ({
         <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>Selecciona la ubicación de entrega</Text>
 
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, borderRadius: 10, overflow: 'hidden' }}>
             <MapView
               provider={PROVIDER_GOOGLE}
               style={styles.map}

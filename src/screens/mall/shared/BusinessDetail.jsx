@@ -34,7 +34,23 @@ const sectorComponents = {
 const BusinessDetail = ({ route, navigation }) => {
   const { business, sector } = route.params ?? {};
   const { cart } = useCart();
-  const cartItems = cart[business.businessId]?.items || {};
+  
+  const getCartItems = () => {
+    try {
+      if (!business || !business.businessId) return {};
+      const cartData = cart[business.businessId];
+      if (!cartData || !cartData.items) return {};
+      
+      // Verificar que items sea un objeto
+      return typeof cartData.items === 'object' && !Array.isArray(cartData.items) ? cartData.items : {};
+    } catch (error) {
+      console.warn('Error getting cart items:', error);
+      return {};
+    }
+  };
+
+  const cartItems = getCartItems();
+  
   const [visibleItems, setVisibleItems] = useState(new Set());
   const { handleScroll, isScrolling, cleanup } = useScrollHandler();
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -42,19 +58,32 @@ const BusinessDetail = ({ route, navigation }) => {
   useEffect(() => cleanup, []);
 
   useEffect(() => {
+    if (!business) return;
+    
     if (!isScrolling && visibleItems.size > 0) {
       const preloadImagesAsync = async () => {
+        const itemsToPreload = [];
+        
+        // Recolecta todas las URLs primero
         for (const itemId of visibleItems) {
-          const item =
-            business.menus?.find((menu) => menu.menuId === itemId) ||
-            business.products?.find((product) => product.id === itemId) ||
-            business.medicines?.find((medicine) => medicine.id === itemId);
-            
+          let item = null;
+          
+          // Buscar en productos
+          if (business.products && Array.isArray(business.products)) {
+            item = business.products.find(p => p.productId === itemId || p.id === itemId);
+          }
+          
           if (item?.imageUrl) {
-            await preloadImage(item.imageUrl);
+            itemsToPreload.push(item.imageUrl);
           }
         }
+        
+        // Precargar todas las imágenes
+        for (const url of itemsToPreload) {
+          await preloadImage(url);
+        }
       };
+      
       preloadImagesAsync();
     }
   }, [visibleItems, isScrolling, business]);
@@ -62,18 +91,47 @@ const BusinessDetail = ({ route, navigation }) => {
   const handleViewableItemsChanged = useCallback(({ viewableItems }) => {
     const newVisibleItems = new Set();
     viewableItems.forEach(({ item }) => {
-      if (item?.menuId || item?.id) newVisibleItems.add(item.menuId || item.id);
+      if (item?.productId || item?.id) {
+        newVisibleItems.add(item.productId || item.id);
+      }
     });
     setVisibleItems(newVisibleItems);
   }, []);
 
-  const getTotalItems = useCallback((items) => {
-    if (!items) return 0;
-    return Object.values(items).reduce(
-      (total, quantity) => total + quantity,
-      0,
-    );
-  }, []);
+  const getTotalItems = (items) => {
+    try {
+      if (!items || typeof items !== 'object') {
+        return 0;
+      }
+      
+      if (Array.isArray(items)) {
+        return 0;
+      }
+      
+      // Verificar que items tenga propiedades enumerables
+      const values = Object.values(items);
+      
+      // Si Object.values devuelve undefined o null
+      if (!values) {
+        return 0;
+      }
+      
+      // Asegurar que values sea un array
+      if (!Array.isArray(values)) {
+        return 0;
+      }
+      
+      // Reducción segura
+      return values.reduce((total, quantity) => {
+        const num = Number(quantity);
+        return total + (isNaN(num) ? 0 : num);
+      }, 0);
+      
+    } catch (error) {
+      console.warn('Error in getTotalItems:', error, 'items:', items);
+      return 0;
+    }
+  };
 
   const headerTranslate = scrollY.interpolate({
     inputRange: [0, HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT],
@@ -101,6 +159,27 @@ const BusinessDetail = ({ route, navigation }) => {
 
   const SectorContent = sectorComponents[sector];
 
+  // Si no hay negocio, mostrar error inmediatamente
+  if (!business) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={50} color={COLOR.gray} />
+          <Text style={styles.errorText}>No se pudo cargar el negocio</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Calcular total solo una vez
+  let totalCartItems = 0;
+  try {
+    totalCartItems = getTotalItems(cartItems);
+  } catch (error) {
+    console.error('Fatal error calculating cart items:', error);
+    totalCartItems = 0;
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -112,21 +191,33 @@ const BusinessDetail = ({ route, navigation }) => {
             src={business.logoUrl}
             style={styles.coverImage}
             resizeMode="cover"
+            fallbackComponent={
+              <View style={[styles.coverImage, styles.fallbackImage]}>
+                <Ionicons name="business" size={60} color={COLOR.gray} />
+              </View>
+            }
           />
         </Animated.View>
       </Animated.View>
 
-      {/* Info */}
+      {/* Info Container */}
       <Animated.View
-        style={[styles.infoContainer, { transform: [{ translateY: infoTranslate }], opacity: infoOpacity }]}
+        style={[
+          styles.infoContainer,
+          {
+            transform: [{ translateY: infoTranslate }], opacity: infoOpacity
+          }
+        ]}
       >
         <View style={styles.headerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={styles.businessNameContainer}>
             <Ionicons name="business-outline" size={20} color="#555" style={styles.icon} />
-            <Text style={styles.businessName}>{business.fullName}</Text>
+            <Text style={styles.businessName} numberOfLines={1}>
+              {business.fullName || 'Negocio sin nombre'}
+            </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={styles.statusContainer}>
             <Ionicons
               name={business.scheduler?.isActive ? 'checkmark-circle' : 'close-circle'}
               size={20}
@@ -138,15 +229,21 @@ const BusinessDetail = ({ route, navigation }) => {
           </View>
         </View>
 
-        <View style={styles.rowInfo}>
-          <Ionicons name="information-circle-outline" size={20} color="#555" style={styles.icon} />
-          <Text style={styles.businessDescription}>{business.description}</Text>
-        </View>
+        {business.description && (
+          <View style={styles.rowInfo}>
+            <Ionicons name="information-circle-outline" size={20} color="#555" style={styles.icon} />
+            <Text style={styles.businessDescription} numberOfLines={2}>
+              {business.description}
+            </Text>
+          </View>
+        )}
 
         {business.address && (
           <View style={styles.rowInfo}>
             <Ionicons name="location-outline" size={20} color="#555" />
-            <Text style={styles.addressText}> {business.address}</Text>
+            <Text style={styles.addressText} numberOfLines={1}>
+              {business.address}
+            </Text>
           </View>
         )}
       </Animated.View>
@@ -169,8 +266,8 @@ const BusinessDetail = ({ route, navigation }) => {
         </View>
       )}
 
-      {/* Botón flotante de carrito */}
-      {getTotalItems(cartItems) > 0 && (
+      {/* Botón flotante de carrito - Solo si hay items */}
+      {totalCartItems > 0 && (
         <TouchableHighlight
           style={styles.floatingCartButton}
           underlayColor="#ff7f07ff"
@@ -187,7 +284,7 @@ const BusinessDetail = ({ route, navigation }) => {
             <Ionicons name="cart-outline" size={28} color="#fff" />
             <View style={styles.floatingCartBadge}>
               <Text style={styles.floatingCartBadgeText}>
-                {getTotalItems(cartItems)}
+                {totalCartItems}
               </Text>
             </View>
           </View>
@@ -215,6 +312,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLOR.lightGray,
     elevation: 2,
   },
+  fallbackImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+  },
   infoContainer: {
     position: 'absolute',
     top: HEADER_MAX_HEIGHT,
@@ -224,21 +326,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     zIndex: 2,
   },
+  businessNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
   businessName: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 20,
-    marginBottom: 2,
+    flex: 1,
   },
   businessDescription: {
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
     color: '#666',
-    marginBottom: 3,
+    flex: 1,
   },
   rowInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 3,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   statusText: {
     fontFamily: 'Poppins-SemiBold',
@@ -248,6 +360,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 13,
     color: '#555',
+    flex: 1,
   },
   headerRow: {
     flexDirection: 'row',
@@ -257,7 +370,6 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: 6,
-    bottom: 2,
   },
   fallbackContainer: {
     flex: 1,
@@ -269,6 +381,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
     color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: COLOR.gray,
+    marginTop: 16,
+    textAlign: 'center',
   },
   floatingCartButton: {
     position: 'absolute',

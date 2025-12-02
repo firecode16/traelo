@@ -1,8 +1,8 @@
+import React, { useEffect, useState, useRef, useCallback, use } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   StatusBar,
 } from 'react-native';
 
@@ -10,7 +10,11 @@ import { COLOR } from '../../../constants/Color';
 
 const FashionAndShoeScreen = ({ navigation, route }) => {
   const { sector } = route.params || {};
-  
+
+  useEffect(() => {
+    console.log('🚀 mounted - sector:', sector);
+  }, [sector]);
+
   return (
     <View style={styles.container}>
       <StatusBar animated={true} style="light" />

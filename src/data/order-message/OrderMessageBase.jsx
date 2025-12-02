@@ -99,6 +99,6 @@ export class OrderMessageBase {
     message += this.generateTotalSection();
     message += `\n📲 Enviado desde la app Tráelo`;
 
-    return encodeURIComponent(message);
+    return message;
   }
 }
