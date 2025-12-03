@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,11 @@ import useScrollHandler from '../../components/HandleScroll';
 import { COLOR } from '../../constants/Color';
 
 // Datos estáticos para las categorías
-const categories = [
+const allCategories = [
   { id: 1, title: 'Comida & Bebidas', emoji: '🍔🥤', sector: 'food' },
   { id: 2, title: 'Moda & Calzado', emoji: '👟👕', sector: 'fashion' },
   { id: 3, title: 'Electrónica & Tecnología', emoji: '📱💻', sector: 'technology' },
-  { id: 4, title: 'Ferreteria', emoji: '🧱 🛠', sector: 'hardware' },
+  { id: 4, title: 'Ferretería', emoji: '🧱🛠️', sector: 'hardware' },
   //{ id: 5, title: 'Farmacia', emoji: '💊📝', sector: 'pharmacy' },
 ];
 
@@ -76,10 +76,35 @@ const FooterSections = () => (
 
 export default function HomeScreen({ navigation }) {
   const { handleScroll, cleanup } = useScrollHandler();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState(allCategories);
 
   useEffect(() => {
     return cleanup;
   }, []);
+
+  // Filtrar categorías basado en la búsqueda
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setCategories(allCategories);
+      return;
+    }
+
+    const filtered = allCategories.filter(category =>
+      category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      category.sector.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    setCategories(filtered);
+  }, [searchQuery]);
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery('');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -93,9 +118,25 @@ export default function HomeScreen({ navigation }) {
           paddingHorizontal: 16,
         }}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<Header />}
+        ListHeaderComponent={
+          <Header
+            navigation={navigation}
+            onSearchChange={handleSearch}
+            onSearchClear={handleSearchClear}
+            searchQuery={searchQuery}
+          />
+        }
         ListFooterComponent={<FooterSections />}
         ListFooterComponentStyle={{ paddingBottom: 0 }}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>🔍</Text>
+            <Text style={styles.emptyTitle}>No se encontraron categorías</Text>
+            <Text style={styles.emptyText}>
+              No hay categorías que coincidan con "{searchQuery}"
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <CategoryCard
             emoji={item.emoji}
@@ -205,5 +246,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Light',
     fontSize: 12,
     color: '#525252ff',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontFamily: 'Roboto-Medium',
+    fontSize: 18,
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontFamily: 'Roboto-Regular',
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

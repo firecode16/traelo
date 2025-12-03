@@ -10,6 +10,10 @@ export class OrderMessageBase {
     this.paymentMethod = orderData.paymentMethod;
     this.deliveryReference = orderData.deliveryReference;
     this.deliveryTime = orderData.deliveryTime;
+    this.subtotal = orderData.subtotal || 0;
+    this.deliveryCommission = orderData.deliveryCommission || 0;
+    this.deliveryCommissionMessage = orderData.deliveryCommissionMessage || '';
+    this.total = orderData.total || 0;
   }
 
   generateHeader() {
@@ -58,21 +62,37 @@ export class OrderMessageBase {
   }
 
   generateOrderItems() {
-    throw new Error('generateOrderItems debe ser implementado por la clase hija',);
+    throw new Error('generateOrderItems debe ser implementado por la clase hija');
   }
 
   generateTotalSection() {
     let message = '';
-    const total = this.calculateTotal();
+    
+    // Mostrar subtotal
+    message += `\n📄 *Subtotal:* $${this.subtotal}\n`;
+    
+    // Mostrar comisión de envío si existe
+    if (this.deliveryCommission > 0) {
+      message += `🚚 *Comisión de envío:* $${this.deliveryCommission.toFixed(2)}\n`;
+      if (this.deliveryCommissionMessage) {
+        message += `${this.deliveryCommissionMessage}\n`;
+      }
+    } else if (this.deliveryCommission === 0 && this.deliveryMethod === 'A domicilio') {
+      message += `🚚 *Comisión de envío:* Gratis\n`;
+      if (this.deliveryCommissionMessage) {
+        message += `${this.deliveryCommissionMessage}\n`;
+      }
+    }
 
-    message += `\n💰 *Total: $${total}*\n`;
+    message += `\n💰 *Total: $${this.total}*\n`;
 
     if (this.paymentMethod === 'cash' && this.paymentAmount) {
       const pago = parseFloat(this.paymentAmount);
+      const totalNum = parseFloat(this.total);
       message += `💵 *Pagaré con:* $${pago}\n`;
 
-      if (pago >= total) {
-        const cambio = (pago - total).toFixed(2);
+      if (pago >= totalNum) {
+        const cambio = (pago - totalNum).toFixed(2);
         message += `💸 *Cambio:* $${cambio}\n`;
       } else {
         message += `⚠️ *El monto ingresado es menor al total*\n`;
@@ -83,8 +103,7 @@ export class OrderMessageBase {
   }
 
   calculateTotal() {
-    return this.cartState.reduce(
-      (sum, item) => sum + this.getItemTotal(item), 0,);
+    return this.cartState.reduce((sum, item) => sum + this.getItemTotal(item), 0);
   }
 
   getItemTotal(item) {

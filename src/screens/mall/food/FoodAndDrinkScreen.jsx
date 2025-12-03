@@ -263,10 +263,10 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
 
   const LocationHeader = () => (
     <View style={styles.locationHeader}>
-      <View style={styles.locationInfo}>
-        <Ionicons name="location" size={16} color={COLOR.green} />
+      <View style={styles.locationRow}>
+        <Ionicons name="location" size={18} color={COLOR.green} />
         <Text style={styles.locationText}>
-          {userLocation ? 'Mostrando negocios cerca de ti' : 'Obteniendo tu ubicación...'}
+          {businesses.length} negocio(s) disponible(s), cerca de ti
         </Text>
       </View>
 
@@ -278,10 +278,6 @@ const FoodAndDrinkScreen = ({ navigation, route }) => {
           </Text>
         </View>
       )}
-
-      <Text style={styles.businessCount}>
-        {businesses.length} negocio(s) disponible(s)
-      </Text>
     </View>
   );
 
@@ -483,15 +479,19 @@ const styles = StyleSheet.create({
   },
   locationHeader: {
     padding: 15,
-    paddingBottom: 8,
+    paddingBottom: 10,
     backgroundColor: COLOR.white,
     borderBottomWidth: 1,
     borderBottomColor: COLOR.lightGray,
+    alignItems: 'center',
+    elevation: 2,
+    marginStart: 16,
+    marginInlineEnd: 16,
+    borderRadius: 10,
   },
-  locationInfo: {
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   locationText: {
     fontFamily: 'Poppins-Medium',
@@ -515,12 +515,6 @@ const styles = StyleSheet.create({
     color: COLOR.orange,
     marginLeft: 6,
     flex: 1,
-  },
-  businessCount: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 13,
-    color: COLOR.green,
-    marginTop: 8,
   },
   footerLoader: {
     marginVertical: 20,

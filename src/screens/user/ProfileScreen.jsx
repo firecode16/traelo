@@ -7,15 +7,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
-  TouchableWithoutFeedback,
-  Alert,
   Modal,
+  Keyboard,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { updateUser } from '../../services/AuthService';
 
 const ProfileScreen = () => {
@@ -28,36 +24,38 @@ const ProfileScreen = () => {
   });
   const [editable, setEditable] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [errorModalVisible, setErrorModalVisible] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalType, setModalType] = useState('success');
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('userInfo');
-        if (stored) {
-          const user = JSON.parse(stored);
-          console.log('user ID:', user.userId);
-
-          setProfile(user);
-          setForm({
-            fullName: user.fullName || '',
-            email: user.email || '',
-            phone: user.phone || '',
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      } catch (error) {
-        console.error('Error cargando perfil:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadProfile();
   }, []);
 
+  const loadProfile = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('userInfo');
+      if (stored) {
+        const user = JSON.parse(stored);
+        console.log('user ID:', user.userId);
+
+        setProfile(user);
+        setForm({
+          fullName: user.fullName || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando perfil:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditToggle = () => {
+    Keyboard.dismiss();
     setEditable(!editable);
   };
 
@@ -65,12 +63,16 @@ const ProfileScreen = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const showErrorModal = (message) => {
-    setErrorMessage(message);
-    setErrorModalVisible(true);
+  const showModal = (message, type = 'success') => {
+    setModalMessage(message);
+    setModalType(type);
+    setModalVisible(true);
   };
 
   const handleSave = async () => {
+    setLoading(true);
+    Keyboard.dismiss();
+
     try {
       const updated = { ...profile, ...form };
       await AsyncStorage.setItem('userInfo', JSON.stringify(updated));
@@ -83,137 +85,163 @@ const ProfileScreen = () => {
       });
 
       setEditable(false);
-      Alert.alert('Actualizado', 'Los cambios han sido guardados.');
+      showModal('Los cambios han sido guardados.', 'success');
     } catch (err) {
-      showErrorModal('No se pudieron guardar los cambios. Por favor, intenta nuevamente.');
+      showModal('No se pudieron guardar los cambios. Por favor, intenta nuevamente.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && !profile) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#f97316" />
-        <Text style={{ marginTop: 10 }}>Cargando perfil...</Text>
+        <ActivityIndicator size="large" color="#00CC86" />
+        <Text style={styles.loadingText}>Cargando perfil...</Text>
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={styles.title}>👤</Text>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+      >
+        <Text style={styles.title}>👤 Perfil del Usuario</Text>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Nombre del usuario</Text>
-            <TextInput
-              style={[styles.input, !editable && styles.disabled]}
-              editable={editable}
-              value={form.fullName}
-              onChangeText={(text) => handleChange('fullName', text)}
+        <View style={styles.field}>
+          <Text style={styles.label}>Nombre del usuario</Text>
+          <TextInput
+            style={[styles.input, !editable && styles.disabled]}
+            editable={editable}
+            value={form.fullName}
+            onChangeText={(text) => handleChange('fullName', text)}
+            onBlur={() => Keyboard.dismiss()}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Correo electrónico</Text>
+          <TextInput
+            style={[styles.input, !editable && styles.disabled]}
+            editable={editable}
+            keyboardType="email-address"
+            value={form.email}
+            onChangeText={(text) => handleChange('email', text)}
+            onBlur={() => Keyboard.dismiss()}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Número de Celular</Text>
+          <TextInput
+            style={[styles.input, !editable && styles.disabled]}
+            editable={editable}
+            keyboardType="phone-pad"
+            value={form.phone}
+            onChangeText={(text) => handleChange('phone', text)}
+            onBlur={() => Keyboard.dismiss()}
+          />
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.button, editable ? styles.cancelButton : styles.editButton]}
+            onPress={handleEditToggle}
+          >
+            <Ionicons
+              name={editable ? 'close' : 'create-outline'}
+              size={20}
+              color="#fff"
             />
-          </View>
+            <Text style={styles.buttonText}>
+              {editable ? 'Cancelar' : 'Editar'}
+            </Text>
+          </TouchableOpacity>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Correo electrónico</Text>
-            <TextInput
-              style={[styles.input, !editable && styles.disabled]}
-              editable={editable}
-              keyboardType="email-address"
-              value={form.email}
-              onChangeText={(text) => handleChange('email', text)}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Teléfono</Text>
-            <TextInput
-              style={[styles.input, !editable && styles.disabled]}
-              editable={editable}
-              keyboardType="phone-pad"
-              value={form.phone}
-              onChangeText={(text) => handleChange('phone', text)}
-            />
-          </View>
-
-          <View style={styles.actions}>
+          {editable && (
             <TouchableOpacity
-              style={styles.buttonEdit}
-              onPress={handleEditToggle}
+              style={[styles.button, styles.saveButton]}
+              onPress={handleSave}
+              disabled={loading}
             >
-              <Ionicons
-                name={editable ? 'close' : 'create-outline'}
-                size={20}
-                color="#fff"
-              />
-              <Text style={styles.buttonText}>
-                {editable ? 'Cancelar' : 'Editar'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="save-outline" size={20} color="#fff" />
+                  <Text style={styles.buttonText}>Guardar</Text>
+                </>
+              )}
             </TouchableOpacity>
+          )}
+        </View>
 
-            {editable && (
-              <TouchableOpacity style={styles.buttonSave} onPress={handleSave}>
-                <Ionicons name="save-outline" size={20} color="#fff" />
-                <Text style={styles.buttonText}>Guardar</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
 
       <Modal
         animationType="fade"
         transparent={true}
-        visible={errorModalVisible}
-        onRequestClose={() => setErrorModalVisible(false)}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Ionicons name="close-circle" size={24} color="#ef4444" />
-              <Text style={styles.modalTitle}>Error</Text>
+              <Ionicons
+                name={modalType === 'success' ? "checkmark-circle" : "close-circle"}
+                size={32}
+                color={modalType === 'success' ? "#00CC86" : "#EF4444"}
+              />
+              <Text style={styles.modalTitle}>
+                {modalType === 'success' ? 'Éxito' : 'Error'}
+              </Text>
             </View>
-            <Text style={styles.modalMessage}>{errorMessage}</Text>
+            <Text style={styles.modalMessage}>{modalMessage}</Text>
             <TouchableOpacity
-              style={[styles.modalButton, styles.errorButton]}
-              onPress={() => setErrorModalVisible(false)}
+              style={[styles.modalButton, modalType === 'success' ? styles.successButton : styles.errorButton]}
+              onPress={() => setModalVisible(false)}
             >
               <Text style={styles.modalButtonText}>Aceptar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 25,
+    flex: 1,
     backgroundColor: '#fff',
-    flexGrow: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 150,
   },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#f97316',
+    fontSize: 22,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#00CC86',
     marginBottom: 30,
     textAlign: 'center',
   },
   field: {
-    marginBottom: 18,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
-    marginBottom: 6,
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 8,
     color: '#333',
-    fontWeight: '600',
   },
   input: {
     borderWidth: 1,
@@ -221,6 +249,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#000',
+    backgroundColor: '#fff',
   },
   disabled: {
     backgroundColor: '#f4f4f4',
@@ -228,33 +259,48 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginTop: 30,
+    marginBottom: 20,
+    gap: 12,
   },
-  buttonEdit: {
+  button: {
     flexDirection: 'row',
-    backgroundColor: '#f59e0b',
-    padding: 12,
+    padding: 14,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
-  buttonSave: {
-    flexDirection: 'row',
-    backgroundColor: '#10b981',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+  editButton: {
+    backgroundColor: '#00CC86',
+  },
+  cancelButton: {
+    backgroundColor: '#6B7280',
+  },
+  saveButton: {
+    backgroundColor: '#00CC86',
   },
   buttonText: {
     color: '#fff',
-    fontWeight: 'bold',
-    marginLeft: 6,
+    fontFamily: 'Poppins-SemiBold',
+    marginLeft: 8,
     fontSize: 16,
+  },
+  bottomSpacer: {
+    height: 100,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#6B7280',
   },
   modalOverlay: {
     flex: 1,
@@ -266,48 +312,46 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: 'white',
     borderRadius: 15,
-    padding: 20,
+    padding: 24,
     width: '100%',
-    maxWidth: 350,
+    maxWidth: 320,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontFamily: 'Poppins-SemiBold',
+    marginLeft: 12,
+    color: '#111827',
   },
   modalMessage: {
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
     textAlign: 'center',
-    marginBottom: 20,
-    color: '#555',
+    marginBottom: 24,
+    color: '#6B7280',
+    lineHeight: 22,
   },
   modalButton: {
     paddingVertical: 12,
-    paddingHorizontal: 30,
+    paddingHorizontal: 32,
     borderRadius: 8,
     width: '100%',
     alignItems: 'center',
   },
+  successButton: {
+    backgroundColor: '#00CC86',
+  },
   errorButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#EF4444',
   },
   modalButtonText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
   },
 });

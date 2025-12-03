@@ -711,63 +711,74 @@ const FoodMenu = ({ navigation, route }) => {
 
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
-      {/* Header con Logo */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={pickLogo} style={styles.logoWrapper}>
-          {logoUri && !logoError ? (
-            <View style={styles.logoContainer}>
-              <Image
-                source={{ uri: logoUri }}
-                style={styles.logo}
-                onLoad={handleLogoLoad}
-                onError={handleLogoError}
-              />
-              {!logoLoaded && (
-                <ActivityIndicator
-                  size="large"
-                  color={COLORS.primary}
-                  style={styles.logoSpinner}
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header con Logo */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={pickLogo} style={styles.logoWrapper}>
+            {logoUri && !logoError ? (
+              <View style={styles.logoContainer}>
+                <Image
+                  source={{ uri: logoUri }}
+                  style={styles.logo}
+                  onLoad={handleLogoLoad}
+                  onError={handleLogoError}
                 />
-              )}
-              <View style={styles.logoOverlay}>
-                <Ionicons name="camera-outline" size={20} color={COLORS.white} />
+                {!logoLoaded && (
+                  <ActivityIndicator
+                    size="large"
+                    color={COLORS.primary}
+                    style={styles.logoSpinner}
+                  />
+                )}
+                <View style={styles.logoOverlay}>
+                  <Ionicons name="camera-outline" size={20} color={COLORS.white} />
+                </View>
               </View>
-            </View>
-          ) : (
-            <View style={styles.logoPlaceholder}>
-              <Ionicons name="restaurant-outline" size={32} color={COLORS.gray} />
-              <Text style={styles.logoText}>Logo del negocio</Text>
-            </View>
-          )}
+            ) : (
+              <View style={styles.logoPlaceholder}>
+                <Ionicons name="restaurant-outline" size={32} color={COLORS.gray} />
+                <Text style={styles.logoText}>Logo del negocio</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.changeLogoText}>Toca para cambiar logo</Text>
+        </View>
+
+        {/* Botón Principal */}
+        <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
+          <Ionicons name="add-circle" size={24} color={COLORS.white} />
+          <Text style={styles.addButtonText}>Nuevo producto</Text>
         </TouchableOpacity>
 
-        <Text style={styles.changeLogoText}>Toca para cambiar logo</Text>
-      </View>
-
-      {/* Botón Principal */}
-      <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
-        <Ionicons name="add-circle" size={24} color={COLORS.white} />
-        <Text style={styles.addButtonText}>Nuevo producto</Text>
-      </TouchableOpacity>
-
-      {/* Lista de Productos */}
-      {products.length > 0 ? (
-        <FlatList
-          data={products}
-          keyExtractor={(item) => item.productId?.toString()}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="fast-food-outline" size={64} color={COLORS.lightGray} />
-          <Text style={styles.emptyStateTitle}>No hay productos</Text>
-          <Text style={styles.emptyStateText}>
-            Comienza agregando tu primer producto
-          </Text>
-        </View>
-      )}
+        {/* Lista de Productos */}
+        {products.length > 0 ? (
+          <View style={styles.productsSection}>
+            <Text style={styles.productsTitle}>Productos ({products.length})</Text>
+            <FlatList
+              data={products}
+              keyExtractor={(item) => item.productId?.toString()}
+              renderItem={renderItem}
+              scrollEnabled={false}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+            />
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Ionicons name="fast-food-outline" size={64} color={COLORS.lightGray} />
+            <Text style={styles.emptyStateTitle}>No hay productos</Text>
+            <Text style={styles.emptyStateText}>
+              Comienza agregando tu primer producto
+            </Text>
+          </View>
+        )}
+      </ScrollView>
 
       {/* Modal de Agregar/Editar Producto */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -1248,6 +1259,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 30,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -1332,8 +1350,19 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontFamily: 'Poppins-SemiBold',
   },
+  productsSection: {
+    marginTop: 10,
+  },
+  productsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginLeft: 16,
+    marginBottom: 10,
+    fontFamily: 'Poppins-SemiBold',
+  },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16,
     paddingBottom: 20,
   },
   emptyState: {
@@ -1341,6 +1370,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    marginTop: 20,
   },
   emptyStateTitle: {
     fontSize: 18,
