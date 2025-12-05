@@ -5,6 +5,9 @@ import {
   StyleSheet,
   Animated,
   TouchableHighlight,
+  Share,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLOR } from '../../../constants/Color';
@@ -22,6 +25,8 @@ import BusinessPharmacyContent from '../pharmacy/BusinessPharmacyContent';
 const HEADER_MAX_HEIGHT = 200;
 const HEADER_MIN_HEIGHT = 60;
 const INFO_CONTAINER_HEIGHT = 120;
+
+const APP_STORE_LINK = Platform.OS === 'ios' ? 'https://apps.apple.com/app/idTU_APP_ID' : 'https://play.google.com/store/apps/details?id=com.traelo.app';
 
 const sectorComponents = {
   food: BusinessFoodContent,
@@ -97,6 +102,48 @@ const BusinessDetail = ({ route, navigation }) => {
     });
     setVisibleItems(newVisibleItems);
   }, []);
+
+  const handleShareBusiness = async () => {
+    try {
+      if (!business) {
+        console.error('No hay información del negocio para compartir');
+        return;
+      }
+
+      // Crear mensaje personalizado para compartir
+      const shareMessage = `🏪 **${business.fullName || 'Negocio'}**\n\n` +
+        `📍 ${business.address || 'Ubicación no disponible'}\n\n` +
+        `📱 **¿Qué ofrece?**\n` +
+        `✅ Catálogo completo de productos\n` +
+        `✅ Pedidos en línea\n` +
+        `✅ Entrega rápida\n\n` +
+        `🌟 **Descarga TRAELO para ver:**\n` +
+        `• Menú completo y precios\n` +
+        `• Promociones exclusivas\n` +
+        `• Realizar pedidos fácilmente\n\n` +
+        `📲 Descarga la app: ${APP_STORE_LINK}\n\n` +
+        `#${sector || 'negocio'} #TRAELO #CentroComercial #ComprasLocales`;
+
+      const shareOptions = {
+        message: shareMessage,
+        title: `¡Mira ${business.fullName || 'este negocio'} en TRAELO!`,
+        url: APP_STORE_LINK,
+      };
+
+      const result = await Share.share(shareOptions);
+      
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          console.log('Compartido con:', result.activityType);
+        }
+        console.log('Negocio compartido exitosamente');
+      } else if (result.action === Share.dismissedAction) {
+        console.log('Compartir cancelado');
+      }
+    } catch (error) {
+      console.error('Error al compartir el negocio:', error);
+    }
+  };
 
   const getTotalItems = (items) => {
     try {
@@ -182,7 +229,7 @@ const BusinessDetail = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header con imagen y botón compartir */}
       <Animated.View
         style={[styles.headerContainer, { transform: [{ translateY: headerTranslate }] }]}
       >
@@ -197,6 +244,17 @@ const BusinessDetail = ({ route, navigation }) => {
               </View>
             }
           />
+
+          {/* Botón compartir en el header */}
+          <TouchableOpacity
+            style={styles.shareHeaderButton}
+            onPress={handleShareBusiness}
+            activeOpacity={0.8}
+          >
+            <View style={styles.shareHeaderButtonIcon}>
+              <Ionicons name="share-social-outline" size={22} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
         </Animated.View>
       </Animated.View>
 
@@ -433,6 +491,41 @@ const styles = StyleSheet.create({
     color: COLOR.white,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 12,
+  },
+
+  shareHeaderButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    right: 16,
+    zIndex: 20,
+  },
+  shareHeaderButtonIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    // Efecto de brillo sutil
+    overflow: 'hidden',
+  },
+  // Efecto de brillo interno (pseudo-elemento)
+  shareHeaderButtonIconInner: {
+    position: 'absolute',
+    top: -10,
+    left: -10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    transform: [{ rotate: '45deg' }],
   },
 });
 

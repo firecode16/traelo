@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   View,
   Text,
@@ -9,11 +9,14 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLOR } from '../constants/Color';
 import LocationService from '../services/LocationService';
 import debounce from 'lodash/debounce';
+
+const APP_STORE_LINK = Platform.OS === 'ios' ? 'https://apps.apple.com/app/id=com.traelo.app' : 'https://play.google.com/store/apps/details?id=com.traelo.app';
 
 export default function Header({ navigation, onSearchChange, onSearchClear, searchQuery = '' }) {
   const [address, setAddress] = useState('Obteniendo ubicación...');
@@ -22,18 +25,24 @@ export default function Header({ navigation, onSearchChange, onSearchClear, sear
   const [modalMessage, setModalMessage] = useState('');
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
-  // Debounced search para evitar demasiados re-renders
-  const debouncedSearch = useCallback(
+  // Usamos useRef para mantener la referencia al debounce
+  const debouncedSearchRef = useRef(
     debounce((query) => {
       onSearchChange(query);
-    }, 300),
-    [onSearchChange]
+    }, 300)
   );
 
   // Sincronizar localSearchQuery con searchQuery prop
   useEffect(() => {
     setLocalSearchQuery(searchQuery);
   }, [searchQuery]);
+
+  // Limpiar el debounce al desmontar
+  useEffect(() => {
+    return () => {
+      debouncedSearchRef.current.cancel();
+    };
+  }, []);
 
   useEffect(() => {
     getCurrentLocation();
@@ -71,7 +80,7 @@ export default function Header({ navigation, onSearchChange, onSearchClear, sear
 
   const handleSearchChange = (text) => {
     setLocalSearchQuery(text);
-    debouncedSearch(text);
+    debouncedSearchRef.current(text);
   };
 
   const handleClearSearch = () => {
@@ -85,34 +94,71 @@ export default function Header({ navigation, onSearchChange, onSearchClear, sear
     onSearchChange(localSearchQuery);
   };
 
+  const handleShare = async () => {
+    try {
+      const shareOptions = {
+        message: `📍 Estoy usando TRAELO para encontrar negocios cerca de: ${address}\n\n📲 Descarga la app: ${APP_STORE_LINK}\n\n#TRAELO #CentroComercial #ComprasLocales`,
+        title: '¡Mira esta app!',
+        url: APP_STORE_LINK,
+        subject: 'Compartir TRAELO App', // Para email
+      };
+
+      const result = await Share.share(shareOptions);
+      
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          console.log('Compartido con:', result.activityType);
+        } else {
+          console.log('Compartido exitosamente');
+        }
+      } else if (result.action === Share.dismissedAction) {
+        console.log('Compartir cancelado');
+      }
+    } catch (error) {
+      console.error('Error al compartir:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.innerContainer}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>TRAELO</Text>
-          <TouchableOpacity
-            style={styles.addressContainer}
-            onPress={getCurrentLocation}
+        {/* Fila superior con logo y botón de compartir */}
+        <View style={styles.topRow}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>TRAELO</Text>
+            <TouchableOpacity
+              style={styles.addressContainer}
+              onPress={getCurrentLocation}
+              activeOpacity={0.7}
+            >
+              {isLocationLoading ? (
+                <ActivityIndicator size="small" color="rgba(255,255,255,0.9)" />
+              ) : (
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color="rgba(255,255,255,0.9)"
+                />
+              )}
+              <Text style={styles.addressText} numberOfLines={1}>
+                {isLocationLoading ? 'Obteniendo ubicación...' : address}
+              </Text>
+              <Ionicons
+                name="refresh-outline"
+                size={14}
+                color="rgba(255,255,255,0.7)"
+                style={{ marginLeft: 4 }}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Botón de compartir */}
+          <TouchableOpacity 
+            style={styles.shareButton}
+            onPress={handleShare}
             activeOpacity={0.7}
           >
-            {isLocationLoading ? (
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.9)" />
-            ) : (
-              <Ionicons
-                name="location-outline"
-                size={16}
-                color="rgba(255,255,255,0.9)"
-              />
-            )}
-            <Text style={styles.addressText} numberOfLines={1}>
-              {isLocationLoading ? 'Obteniendo ubicación...' : address}
-            </Text>
-            <Ionicons
-              name="refresh-outline"
-              size={14}
-              color="rgba(255,255,255,0.7)"
-              style={{ marginLeft: 4 }}
-            />
+            <Ionicons name="share-outline" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -140,8 +186,9 @@ export default function Header({ navigation, onSearchChange, onSearchClear, sear
               <TouchableOpacity
                 onPress={handleClearSearch}
                 style={styles.clearButton}
+                activeOpacity={0.7}
               >
-                <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                <Ionicons name="close-circle" size={20} color="#6B7280" />
               </TouchableOpacity>
             )}
           </View>
@@ -188,28 +235,39 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
-  logoContainer: {
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 16,
+  },
+  logoContainer: {
+    flex: 1,
   },
   logoText: {
     fontFamily: 'Roboto-Bold',
     color: '#FFFFFF',
     fontSize: 28,
     marginBottom: 6,
-    textAlign: 'center',
   },
   addressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 12,
+    paddingRight: 8,
   },
   addressText: {
     fontFamily: 'Roboto-Regular',
     color: 'rgba(255,255,255,0.9)',
     fontSize: 14,
     flexShrink: 1,
+  },
+  shareButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    padding: 8,
+    marginLeft: 12,
+    marginTop: 4,
   },
   searchContainer: {
     position: 'relative',
@@ -229,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     paddingLeft: 52,
-    paddingRight: 44,
+    paddingRight: 52,
     paddingVertical: 14,
     fontSize: 15,
     fontFamily: 'Roboto-Regular',
@@ -244,8 +302,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     top: '50%',
-    transform: [{ translateY: -10 }],
+    transform: [{ translateY: -12 }],
     zIndex: 2,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 16,
   },
   modalOverlay: {
     flex: 1,
