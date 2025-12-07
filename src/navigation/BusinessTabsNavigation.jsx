@@ -8,6 +8,7 @@ import BusinessHomeScreen from '../screens/business/BusinessHomeScreen';
 import BusinessOrdersScreen from '../screens/business/BusinessOrdersScreen';
 import BusinessScheduleScreen from '../screens/business/BusinessScheduleScreen';
 import BusinessProfileScreen from '../screens/business/BusinessProfileScreen';
+import PaymentPlanScreen from '../screens/business/payments/PaymentPlanScreen';
 import SectorOrchestrator from '../orchestrator/SectorOrchestrator';
 import { COLOR } from '../constants/Color';
 import { getSectorByBusinessId } from '../services/SectorService';
@@ -84,6 +85,9 @@ const BusinessTabsNavigation = () => {
             case 'Horarios':
               iconName = focused ? 'time' : 'time-outline';
               break;
+            case 'PaymentPlan':
+              iconName = focused ? 'card' : 'card-outline';
+              break;
             case 'Perfil':
               iconName = focused ? 'person' : 'person-outline';
               break;
@@ -121,6 +125,11 @@ const BusinessTabsNavigation = () => {
         name="Horarios"
         component={BusinessScheduleScreen}
         options={{ title: 'Horarios' }}
+      />
+      <Tab.Screen
+        name="PaymentPlan"
+        component={PaymentPlanScreen}
+        options={{ title: 'Pagos' }}
       />
       <Tab.Screen
         name="Perfil"

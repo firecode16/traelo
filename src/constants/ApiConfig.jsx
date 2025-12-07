@@ -53,4 +53,14 @@ export const API = {
     GET_BY_BUSINESS: (businessId) => `${BASE_URL}/zone-commissions/getZoneCommissionByBusiness/${businessId}`,
     UPDATE_ZONE_COMMISSION_OPTIONS: `${BASE_URL}/zone-commissions/update-options`,
   },
+  PAYMENTS: {
+    GET_PAYMENT_PLAN_BY_BUSINESS: (businessId) => `${BASE_URL}/payment-plans/getPaymentPlanByBusiness/${businessId}`,
+    CREATE_PAYMENT_PLAN: `${BASE_URL}/payment-plans/createSubscription`,
+    ACTIVATE_PAYMENT_PLAN: (paymentPlanId) => `${BASE_URL}/payment-plans/${paymentPlanId}/activate`,
+    CANCEL_PAYMENT_PLAN: (paymentPlanId) => `${BASE_URL}/payment-plans/${paymentPlanId}/cancel`,
+    UPDATE_PAYMENT_PLAN: (paymentPlanId) => `${BASE_URL}/payment-plans/${paymentPlanId}`,
+    HAS_ACTIVE_SUBSCRIPTION: (businessId) => `${BASE_URL}/payment-plans/${businessId}/hasActive`,
+    GET_MERCADO_PAGO_URL: `${BASE_URL}/payment-plans/getMercadoPagoUrl`,
+    MARK_PAYMENT_AS_PENDING: (paymentPlanId) => `${BASE_URL}/payment-plans/${paymentPlanId}/markPending`,
+  },
 };
