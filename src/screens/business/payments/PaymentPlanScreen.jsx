@@ -8,7 +8,6 @@ import {
   Dimensions,
   ActivityIndicator,
   Modal,
-  Alert,
 } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
@@ -25,7 +24,15 @@ const Card = ({ children, style }) => (
   <View style={[styles.card, style]}>{children}</View>
 );
 
-const Button = ({ children, onPress, style, textStyle, disabled = false, icon = null, loading = false, }) => (
+const Button = ({
+  children,
+  onPress,
+  style,
+  textStyle,
+  disabled = false,
+  icon = null,
+  loading = false,
+}) => (
   <TouchableOpacity
     style={[styles.button, style, disabled && styles.buttonDisabled]}
     onPress={onPress}
@@ -44,7 +51,7 @@ const Button = ({ children, onPress, style, textStyle, disabled = false, icon = 
 );
 
 const CustomModal = React.memo(
-({
+  ({
     visible,
     title,
     message,
@@ -56,14 +63,12 @@ const CustomModal = React.memo(
     showCancel = true,
   }) => {
     const handleConfirm = () => {
-      console.log('🔘 Modal - Botón confirmar presionado');
       if (onConfirm && typeof onConfirm === 'function') {
         onConfirm();
       }
     };
 
     const handleCancel = () => {
-      console.log('🔘 Modal - Botón cancelar presionado');
       if (onCancel && typeof onCancel === 'function') {
         onCancel();
       }
@@ -78,35 +83,36 @@ const CustomModal = React.memo(
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {/* Icono según tipo */}
             <View
               style={[
                 styles.modalIcon,
                 type === 'success'
                   ? styles.modalIconSuccess
                   : type === 'error'
-                    ? styles.modalIconError
-                    : type === 'warning'
-                      ? styles.modalIconWarning
-                      : styles.modalIconInfo,
+                  ? styles.modalIconError
+                  : type === 'warning'
+                  ? styles.modalIconWarning
+                  : styles.modalIconInfo,
               ]}
             >
               <Feather
                 name={
-                  type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : type === 'warning' ? 'alert-triangle' : 'info'
+                  type === 'success'
+                    ? 'check-circle'
+                    : type === 'error'
+                    ? 'alert-circle'
+                    : type === 'warning'
+                    ? 'alert-triangle'
+                    : 'info'
                 }
                 size={32}
                 color="#fff"
               />
             </View>
 
-            {/* Título */}
             <Text style={styles.modalTitle}>{title}</Text>
-
-            {/* Mensaje */}
             <Text style={styles.modalMessage}>{message}</Text>
 
-            {/* Botones */}
             <View style={styles.modalButtons}>
               {showCancel && (
                 <TouchableOpacity
@@ -123,10 +129,10 @@ const CustomModal = React.memo(
                   type === 'success'
                     ? styles.modalConfirmButtonSuccess
                     : type === 'error'
-                      ? styles.modalConfirmButtonError
-                      : type === 'warning'
-                        ? styles.modalConfirmButtonWarning
-                        : styles.modalConfirmButtonInfo,
+                    ? styles.modalConfirmButtonError
+                    : type === 'warning'
+                    ? styles.modalConfirmButtonWarning
+                    : styles.modalConfirmButtonInfo,
                 ]}
                 onPress={handleConfirm}
                 activeOpacity={0.7}
@@ -142,63 +148,23 @@ const CustomModal = React.memo(
 );
 
 // ==================== MODAL DE MERCADO PAGO ====================
-const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, onPaymentSuccess, onPaymentError, showModal, }) => {
+const MercadoPagoModal = ({
+  visible,
+  title,
+  mercadoPagoUrl,
+  onClose,
+  onPaymentSuccess,
+  onPaymentError,
+  showModal,
+}) => {
   const webViewRef = useRef(null);
-  const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
-  const [loadingTime, setLoadingTime] = useState(0);
-  const loadingTimerRef = useRef(null);
-
-  // Efecto para manejar el timeout del loading
-  useEffect(() => {
-    if (loading && visible) {
-      // Iniciar contador de tiempo
-      loadingTimerRef.current = setInterval(() => {
-        setLoadingTime((prev) => prev + 1);
-      }, 1000);
-
-      // Timeout automático después de 60 segundos (1 minuto)
-      const timeout = setTimeout(() => {
-        if (loading) {
-          console.warn('⚠️ Timeout de carga después de 60 segundos');
-          setLoading(false);
-          showModal(
-            'Tiempo de carga excedido',
-            'La página de pago está tardando más de lo normal. Por favor, verifica tu conexión a internet e intenta nuevamente.',
-            'warning',
-            () => {
-              // Reintentar
-              if (webViewRef.current) {
-                webViewRef.current.reload();
-                setLoading(true);
-                setLoadingTime(0);
-              }
-            },
-            onClose,
-          );
-        }
-      }, 60000); // 60 segundos
-
-      return () => {
-        clearTimeout(timeout);
-        if (loadingTimerRef.current) {
-          clearInterval(loadingTimerRef.current);
-        }
-      };
-    } else {
-      // Resetear contador cuando no está loading
-      setLoadingTime(0);
-      if (loadingTimerRef.current) {
-        clearInterval(loadingTimerRef.current);
-      }
-    }
-  }, [loading, visible]);
 
   const handleNavigationStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
     const currentUrl = navState.url.toLowerCase();
 
-    // Detectar pago exitoso usando patrones mejorados
+    // Detectar pago exitoso
     if (
       currentUrl.includes('approved') ||
       currentUrl.includes('success') ||
@@ -208,11 +174,9 @@ const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, on
       currentUrl.includes('approved_payment')
     ) {
       console.log('✅ Pago detectado como exitoso');
-      setLoading(false);
-      setTimeout(() => {
-        onClose();
-        if (onPaymentSuccess) onPaymentSuccess();
-      }, 1500);
+      onClose();
+      if (onPaymentSuccess) onPaymentSuccess();
+      return;
     }
 
     // Detectar error o rechazo
@@ -224,19 +188,12 @@ const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, on
       currentUrl.includes('payment_failed')
     ) {
       console.log('❌ Pago detectado como fallido');
-      setLoading(false);
       onClose();
-      showModal('❌ Pago Fallido', 'Hubo un problema con el pago. Intenta con otro método.', 'error',
-        () => {
-          // Reabrir modal para reintentar
-          setTimeout(() => {
-            if (webViewRef.current) {
-              webViewRef.current.reload();
-              setLoading(true);
-            }
-          }, 300);
-        },
-        onClose,
+      showModal(
+        '❌ Pago Fallido',
+        'Hubo un problema con el pago. Intenta con otro método.',
+        'error',
+        () => setTimeout(() => onClose(), 300),
       );
     }
   };
@@ -252,28 +209,8 @@ const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, on
   const handleReload = () => {
     if (webViewRef.current) {
       webViewRef.current.reload();
-      setLoading(true);
-      setLoadingTime(0);
     }
   };
-
-  // Función para forzar el cierre del loading
-  const handleForceCloseLoading = () => {
-    console.log('🔄 Loading cerrado manualmente');
-    setLoading(false);
-    if (loadingTimerRef.current) {
-      clearInterval(loadingTimerRef.current);
-    }
-  };
-
-  // Limpiar intervalos al desmontar
-  useEffect(() => {
-    return () => {
-      if (loadingTimerRef.current) {
-        clearInterval(loadingTimerRef.current);
-      }
-    };
-  }, []);
 
   return (
     <Modal
@@ -285,7 +222,7 @@ const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, on
     >
       <View style={styles.paymentModalOverlay}>
         <View style={styles.paymentModalContent}>
-          {/* Header del Modal */}
+          {/* Header */}
           <View style={styles.paymentModalHeader}>
             <TouchableOpacity
               style={styles.paymentModalBackButton}
@@ -300,11 +237,7 @@ const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, on
             </TouchableOpacity>
 
             <View style={styles.paymentModalTitleContainer}>
-              <Text
-                style={styles.paymentModalTitle}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
+              <Text style={styles.paymentModalTitle} numberOfLines={1}>
                 {title || 'Activar Suscripción'}
               </Text>
             </View>
@@ -324,29 +257,16 @@ const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, on
               ref={webViewRef}
               source={{
                 uri: mercadoPagoUrl,
-                headers: { 'Cache-Control': 'no-cache', },
+                headers: { 'Cache-Control': 'no-cache' },
               }}
               style={styles.webview}
-              onLoadStart={() => {
-                console.log('🌐 Iniciando carga de WebView...');
-                setLoading(true);
-                setLoadingTime(0);
-              }}
-              onLoadEnd={() => {
-                console.log('✅ WebView cargado exitosamente');
-                setLoading(false);
-                if (loadingTimerRef.current) {
-                  clearInterval(loadingTimerRef.current);
-                }
-              }}
-              onLoadProgress={({ nativeEvent }) => { }}
               onNavigationStateChange={handleNavigationStateChange}
               startInLoadingState={true}
               javaScriptEnabled={true}
               domStorageEnabled={true}
               allowsBackForwardNavigationGestures={true}
               sharedCookiesEnabled={true}
-              cacheEnabled={false} // Deshabilitar cache para forzar recarga
+              cacheEnabled={false}
               renderLoading={() => (
                 <View style={styles.webviewLoadingContainer}>
                   <ActivityIndicator size="large" color="#00CC86" />
@@ -357,102 +277,26 @@ const MercadoPagoModal = ({ visible, title, message, mercadoPagoUrl, onClose, on
               )}
               onError={(error) => {
                 console.error('❌ Error en WebView:', error.nativeEvent);
-                setLoading(false);
                 onClose();
                 showModal(
                   'Error de conexión',
                   'Verifica tu conexión a internet e intenta de nuevo.',
                   'error',
-                  () => {
-                    setTimeout(() => {
-                      if (webViewRef.current) {
-                        webViewRef.current.reload();
-                        setLoading(true);
-                      }
-                    }, 300);
-                  },
+                  () => onClose(),
                 );
               }}
               onHttpError={(error) => {
                 console.error('❌ Error HTTP en WebView:', error.nativeEvent);
-                setLoading(false);
+                onClose();
                 showModal(
                   'Error al cargar la página',
                   'Hubo un problema técnico. Por favor, intenta nuevamente.',
                   'error',
-                  () => {
-                    if (webViewRef.current) {
-                      webViewRef.current.reload();
-                      setLoading(true);
-                    }
-                  },
-                );
-              }}
-              onContentProcessDidTerminate={() => {
-                console.warn('⚠️ WebView se cerró inesperadamente');
-                setLoading(false);
-                showModal(
-                  'Página recargada',
-                  'La página se cerró inesperadamente. Hemos recargado el contenido.',
-                  'info',
-                  () => {
-                    if (webViewRef.current) {
-                      webViewRef.current.reload();
-                      setLoading(true);
-                    }
-                  },
+                  () => onClose(),
                 );
               }}
             />
           </View>
-
-          {/* Loading Overlay con timeout y botón de cancelar */}
-          {loading && (
-            <View style={styles.webviewOverlay}>
-              <View style={styles.webviewLoadingCard}>
-                <ActivityIndicator size="large" color="#00CC86" />
-                <Text style={styles.webviewOverlayTitle}>
-                  Procesando pago seguro...
-                </Text>
-                <Text style={styles.webviewOverlaySubtitle}>
-                  {loadingTime < 30
-                    ? 'No cierres esta ventana hasta completar el pago'
-                    : `Cargando... (${loadingTime}s)`}
-                </Text>
-
-                {/* Mostrar advertencia después de 30 segundos */}
-                {loadingTime >= 30 && loadingTime < 60 && (
-                  <View style={styles.timeoutWarning}>
-                    <Feather name="alert-triangle" size={18} color="#F59E0B" />
-                    <Text style={styles.timeoutWarningText}>
-                      La carga está tardando más de lo normal
-                    </Text>
-                  </View>
-                )}
-
-                {/* Mostrar opción de cancelar después de 10 segundos */}
-                {loadingTime >= 10 && (
-                  <View style={styles.loadingActions}>
-                    <TouchableOpacity
-                      style={styles.secondaryActionButton}
-                      onPress={handleReload}
-                    >
-                      <Feather name="refresh-cw" size={16} color="#3B82F6" />
-                      <Text style={styles.secondaryActionText}>Reintentar</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.primaryActionButton}
-                      onPress={handleForceCloseLoading}
-                    >
-                      <Feather name="x" size={16} color="#FFFFFF" />
-                      <Text style={styles.primaryActionText}>Cerrar</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
 
           {/* Footer */}
           <View style={styles.paymentModalFooter}>
@@ -473,7 +317,6 @@ export default function PaymentPlanScreen() {
   const [processing, setProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Estados para modales
   const [customModal, setCustomModal] = useState({
     visible: false,
     title: '',
@@ -508,13 +351,20 @@ export default function PaymentPlanScreen() {
 
   // ==================== FUNCIONES DE MODALES ====================
   const closeModal = useCallback(() => {
-    console.log('🗂️ Cerrando modal personalizado');
     setCustomModal((prev) => ({ ...prev, visible: false }));
   }, []);
 
-  const showModal = useCallback((title, message, type = 'info', onConfirm = null, onCancel = null, confirmText = 'Aceptar', cancelText = 'Cancelar', showCancel = true,) => {
-      console.log('🗂️ Mostrando modal:', title);
-
+  const showModal = useCallback(
+    (
+      title,
+      message,
+      type = 'info',
+      onConfirm = null,
+      onCancel = null,
+      confirmText = 'Aceptar',
+      cancelText = 'Cancelar',
+      showCancel = true,
+    ) => {
       const modalConfig = {
         visible: true,
         title,
@@ -523,30 +373,19 @@ export default function PaymentPlanScreen() {
         confirmText,
         cancelText,
         showCancel,
+        onConfirm: onConfirm
+          ? () => {
+              onConfirm();
+              closeModal();
+            }
+          : closeModal,
+        onCancel: onCancel
+          ? () => {
+              onCancel();
+              closeModal();
+            }
+          : closeModal,
       };
-
-      // Configurar onConfirm
-      if (onConfirm && typeof onConfirm === 'function') {
-        modalConfig.onConfirm = () => {
-          console.log('✅ Ejecutando onConfirm personalizado');
-          onConfirm();
-          closeModal();
-        };
-      } else {
-        modalConfig.onConfirm = closeModal;
-      }
-
-      // Configurar onCancel
-      if (onCancel && typeof onCancel === 'function') {
-        modalConfig.onCancel = () => {
-          console.log('❌ Ejecutando onCancel personalizado');
-          onCancel();
-          closeModal();
-        };
-      } else {
-        modalConfig.onCancel = closeModal;
-      }
-
       setCustomModal(modalConfig);
     },
     [closeModal],
@@ -554,7 +393,6 @@ export default function PaymentPlanScreen() {
 
   const showSuccessModal = useCallback(
     (title, message, onConfirm = null) => {
-      console.log('✅ Mostrando modal de éxito');
       showModal(title, message, 'success', onConfirm);
     },
     [showModal],
@@ -562,7 +400,6 @@ export default function PaymentPlanScreen() {
 
   const showErrorModal = useCallback(
     (title, message, onConfirm = null) => {
-      console.log('❌ Mostrando modal de error');
       showModal(title, message, 'error', onConfirm);
     },
     [showModal],
@@ -570,7 +407,6 @@ export default function PaymentPlanScreen() {
 
   const showWarningModal = useCallback(
     (title, message, onConfirm = null, onCancel = null) => {
-      console.log('⚠️ Mostrando modal de advertencia');
       showModal(title, message, 'warning', onConfirm, onCancel);
     },
     [showModal],
@@ -578,7 +414,6 @@ export default function PaymentPlanScreen() {
 
   const showInfoModal = useCallback(
     (title, message, onConfirm = null) => {
-      console.log('ℹ️ Mostrando modal de información');
       showModal(title, message, 'info', onConfirm);
     },
     [showModal],
@@ -619,7 +454,6 @@ export default function PaymentPlanScreen() {
       const result = await PaymentPlanService.getSubscriptionStatus(id);
 
       if (result.success && result.data) {
-        // Mapeo de datos del servicio a nuestro estado local
         const planData = result.data;
         setSubscription({
           id: planData.id || null,
@@ -638,11 +472,9 @@ export default function PaymentPlanScreen() {
         if (planData.mercadoPagoUrl) {
           setMercadoPagoUrl(planData.mercadoPagoUrl);
         } else {
-          // Usar la constante local si no viene del backend
           setMercadoPagoUrl(MERCADO_PAGO_URL);
         }
       } else {
-        // Usar estado por defecto si el servicio falla
         const urlResult = await PaymentPlanService.getMercadoPagoUrl();
         const defaultSubscription = {
           ...subscription,
@@ -654,7 +486,6 @@ export default function PaymentPlanScreen() {
       }
     } catch (error) {
       console.error('❌ Error cargando suscripción:', error);
-      // Fallback a valores por defecto
       const urlResult = await PaymentPlanService.getMercadoPagoUrl();
       const fallbackSubscription = {
         ...subscription,
@@ -679,7 +510,6 @@ export default function PaymentPlanScreen() {
     setProcessing(true);
 
     try {
-      // Usar la función unificada del servicio corregido
       const result = await PaymentPlanService.handleSubscription(
         businessId,
         userId,
@@ -687,13 +517,11 @@ export default function PaymentPlanScreen() {
       );
 
       if (result.success && result.data) {
-        // Verificar si ya existe una suscripción
         if (result.alreadyExists) {
           showInfoModal(
             'Suscripción Existente',
             'Ya tienes una suscripción activa. Redirigiendo al portal de pagos...',
             () => {
-              // Abrir modal con la URL existente
               if (result.data.mercadoPagoUrl) {
                 setMercadoPagoUrl(result.data.mercadoPagoUrl);
               } else {
@@ -705,7 +533,6 @@ export default function PaymentPlanScreen() {
           return;
         }
 
-        // Actualizar estado local con los datos del servicio
         const planData = result.data;
         const updatedSubscription = {
           id: planData.id || null,
@@ -722,15 +549,12 @@ export default function PaymentPlanScreen() {
 
         setSubscription(updatedSubscription);
 
-        // Configurar URL de Mercado Pago
         let finalUrl = null;
-
         if (planData.mercadoPagoUrl) {
           finalUrl = planData.mercadoPagoUrl;
         } else if (result.mercadoPagoUrl) {
           finalUrl = result.mercadoPagoUrl;
         } else {
-          // Obtener URL por defecto si no viene en la respuesta
           const urlResult = await PaymentPlanService.getMercadoPagoUrl();
           if (urlResult.success && urlResult.url) {
             finalUrl = urlResult.url;
@@ -746,7 +570,10 @@ export default function PaymentPlanScreen() {
           showErrorModal('Error', 'No se pudo generar el enlace de pago');
         }
       } else {
-        showErrorModal('Error', result.message || 'No se pudo crear la suscripción',);
+        showErrorModal(
+          'Error',
+          result.message || 'No se pudo crear la suscripción',
+        );
       }
     } catch (error) {
       console.error('❌ Error activando suscripción:', error);
@@ -759,30 +586,23 @@ export default function PaymentPlanScreen() {
   const handlePaymentSuccess = async () => {
     try {
       if (!subscription.id && businessId) {
-        // Si no tenemos ID de suscripción, recargar desde el backend
         await loadSubscription(businessId);
-
         showSuccessModal(
           '🎉 ¡Pago Exitoso!',
           'Tu pago ha sido procesado correctamente. Estamos activando tu suscripción...',
-          () => {
-            // Recargar datos después de unos segundos
-            setTimeout(() => loadSubscription(businessId), 2000);
-          },
+          () => setTimeout(() => loadSubscription(businessId), 2000),
         );
         return;
       }
 
-      // Actualizar suscripción en backend
       const result = await PaymentPlanService.activatePaymentPlan(
         subscription.id,
-        'MERCADO_PAGO', // Método de pago
-        null, // URL de comprobante (Mercado Pago lo maneja internamente)
+        'MERCADO_PAGO',
+        null,
         'Pago procesado a través de Mercado Pago',
       );
 
       if (result.success) {
-        // Actualizar estado local
         const updatedPlan = result.data;
         setSubscription((prev) => ({
           ...prev,
@@ -792,10 +612,8 @@ export default function PaymentPlanScreen() {
           lastPaymentDate: updatedPlan.lastPaymentDate,
         }));
 
-        // Actualizar AsyncStorage con información del plan
         try {
           const stored = await AsyncStorage.getItem('userInfo');
-          
           if (stored) {
             const user = JSON.parse(stored);
             user.hasActiveSubscription = true;
@@ -814,17 +632,20 @@ export default function PaymentPlanScreen() {
         showSuccessModal(
           '🎉 ¡Suscripción Activada!',
           'Ahora tienes acceso completo a todas las funciones de Traelo App.',
-          () => {
-            // Recargar datos de suscripción
-            loadSubscription(businessId);
-          },
+          () => loadSubscription(businessId),
         );
       } else {
-        showErrorModal('Error', result.message || 'No se pudo actualizar el estado de la suscripción',);
+        showErrorModal(
+          'Error',
+          result.message || 'No se pudo actualizar el estado de la suscripción',
+        );
       }
     } catch (error) {
       console.error('❌ Error procesando pago exitoso:', error);
-      showErrorModal('Error', 'No se pudo actualizar el estado de la suscripción',);
+      showErrorModal(
+        'Error',
+        'No se pudo actualizar el estado de la suscripción',
+      );
     }
   };
 
@@ -832,10 +653,7 @@ export default function PaymentPlanScreen() {
     showWarningModal(
       'Pago no completado',
       'Puedes intentar nuevamente cuando lo desees.',
-      () => {
-        // Reabrir modal de pago
-        setTimeout(() => setShowPaymentModal(true), 300);
-      },
+      () => setTimeout(() => setShowPaymentModal(true), 300),
     );
   };
 
@@ -850,38 +668,43 @@ export default function PaymentPlanScreen() {
       'Si cancelas, tu acceso terminará al final del período actual.',
       async () => {
         try {
-          const result = await PaymentPlanService.cancelPaymentPlan(subscription.id,);
-
+          const result = await PaymentPlanService.cancelPaymentPlan(
+            subscription.id,
+          );
           if (result.success) {
-            // Actualizar estado local
             const updatedPlan = result.data;
-            
             setSubscription((prev) => ({
               ...prev,
               status: updatedPlan.status || 'CANCELLED',
               isTrial: false,
             }));
 
-            // Actualizar AsyncStorage
             try {
               const stored = await AsyncStorage.getItem('userInfo');
-              
               if (stored) {
                 const user = JSON.parse(stored);
                 user.hasActiveSubscription = false;
-                
                 if (user.currentPlan) {
                   user.currentPlan.status = 'CANCELLED';
                 }
                 await AsyncStorage.setItem('userInfo', JSON.stringify(user));
               }
             } catch (storageError) {
-              console.error('❌ Error actualizando AsyncStorage:', storageError,);
+              console.error(
+                '❌ Error actualizando AsyncStorage:',
+                storageError,
+              );
             }
 
-            showSuccessModal('Suscripción cancelada', 'Tu suscripción se cancelará al final del período actual.',);
+            showSuccessModal(
+              'Suscripción cancelada',
+              'Tu suscripción se cancelará al final del período actual.',
+            );
           } else {
-            showErrorModal('Error', result.message || 'No se pudo cancelar la suscripción',);
+            showErrorModal(
+              'Error',
+              result.message || 'No se pudo cancelar la suscripción',
+            );
           }
         } catch (error) {
           console.error('❌ Error cancelando suscripción:', error);
@@ -905,20 +728,21 @@ export default function PaymentPlanScreen() {
             return;
           }
 
-          // Marcar pago como pendiente...
-          const result = await PaymentPlanService.markPaymentAsPending(subscription.id, 'MANUAL',);
-
+          const result = await PaymentPlanService.markPaymentAsPending(
+            subscription.id,
+            'MANUAL',
+          );
           if (result.success) {
             showSuccessModal(
               'Pago marcado como pendiente',
               'Hemos registrado tu intención de pago. Un administrador verificará el comprobante y activará tu suscripción manualmente.',
-              () => {
-                // Recargar estado
-                loadSubscription(businessId);
-              },
+              () => loadSubscription(businessId),
             );
           } else {
-            showErrorModal('Error', result.message || 'No se pudo marcar el pago como pendiente',);
+            showErrorModal(
+              'Error',
+              result.message || 'No se pudo marcar el pago como pendiente',
+            );
           }
         } catch (error) {
           console.error('❌ Error en pago manual:', error);
@@ -962,9 +786,7 @@ export default function PaymentPlanScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Plan de Suscripción</Text>
-            <Text style={styles.headerSubtitle}>
-              Gestión de pagos mensuales
-            </Text>
+            <Text style={styles.headerSubtitle}>Gestión de pagos mensuales</Text>
           </View>
 
           {/* Estado */}
@@ -973,7 +795,8 @@ export default function PaymentPlanScreen() {
               <Text style={styles.statusTitle}>Estado Actual</Text>
               <View
                 style={[
-                  styles.statusBadge, { backgroundColor: getStatusColor(subscription.status) },
+                  styles.statusBadge,
+                  { backgroundColor: getStatusColor(subscription.status) },
                 ]}
               >
                 <Text style={styles.statusBadgeText}>
@@ -989,7 +812,9 @@ export default function PaymentPlanScreen() {
                     <Feather name="package" size={18} color="#6B7280" />
                     <Text style={styles.statusDetailText}>Plan:</Text>
                     <Text style={styles.statusDate}>
-                      {subscription.planType === 'BUSINESS_PLAN' ? 'Negocio' : 'Personal'}
+                      {subscription.planType === 'BUSINESS_PLAN'
+                        ? 'Negocio'
+                        : 'Personal'}
                     </Text>
                   </View>
                 )}
@@ -1000,7 +825,11 @@ export default function PaymentPlanScreen() {
                     {subscription.isTrial ? 'Prueba hasta:' : 'Próximo cobro:'}
                   </Text>
                   <Text style={styles.statusDate}>
-                    {formatDate(subscription.isTrial ? subscription.trialEnd : subscription.nextBillingDate,)}
+                    {formatDate(
+                      subscription.isTrial
+                        ? subscription.trialEnd
+                        : subscription.nextBillingDate,
+                    )}
                   </Text>
                 </View>
 
@@ -1030,7 +859,8 @@ export default function PaymentPlanScreen() {
               <View style={styles.statusDetail}>
                 <Feather name="info" size={18} color="#3B82F6" />
                 <Text style={[styles.statusDetailText, { color: '#3B82F6' }]}>
-                  No tienes una suscripción activa. ¡Comienza tu prueba gratuita!
+                  No tienes una suscripción activa. ¡Comienza tu prueba
+                  gratuita!
                 </Text>
               </View>
             )}
@@ -1061,7 +891,11 @@ export default function PaymentPlanScreen() {
                 'Logística propia',
               ].map((feature, index) => (
                 <View key={index} style={styles.featureItem}>
-                  <MaterialIcons name="check-circle" size={20} color="#10B981" />
+                  <MaterialIcons
+                    name="check-circle"
+                    size={20}
+                    color="#10B981"
+                  />
                   <Text style={styles.featureText}>{feature}</Text>
                 </View>
               ))}
@@ -1082,7 +916,6 @@ export default function PaymentPlanScreen() {
                 </Text>
 
                 <View style={styles.actionButtonsContainer}>
-                  {/* Botón Activar Suscripción */}
                   <Button
                     style={[styles.primaryButton, styles.fullWidthButton]}
                     textStyle={styles.primaryButtonText}
@@ -1091,14 +924,19 @@ export default function PaymentPlanScreen() {
                     loading={processing}
                     icon={
                       !processing && (
-                        <MaterialIcons name="lock-open" size={20} color="#FFFFFF" />
+                        <MaterialIcons
+                          name="lock-open"
+                          size={20}
+                          color="#FFFFFF"
+                        />
                       )
                     }
                   >
-                    {subscription.isTrial ? 'Activar Suscripción' : 'Comenzar Prueba'}
+                    {subscription.isTrial
+                      ? 'Activar Suscripción'
+                      : 'Comenzar Prueba'}
                   </Button>
 
-                  {/* Botón Otros métodos de pago */}
                   <Button
                     style={[styles.secondaryButton, styles.fullWidthButton]}
                     textStyle={styles.secondaryButtonText}
@@ -1192,7 +1030,6 @@ export default function PaymentPlanScreen() {
       <MercadoPagoModal
         visible={showPaymentModal}
         title="Activar Suscripción"
-        message="Completa el pago para activar tu suscripción mensual"
         mercadoPagoUrl={mercadoPagoUrl}
         onClose={() => setShowPaymentModal(false)}
         onPaymentSuccess={handlePaymentSuccess}
@@ -1272,8 +1109,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-
-  // ESTILOS PARA BOTONES
   button: {
     borderRadius: 8,
     paddingVertical: 14,
@@ -1490,18 +1325,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  modalIconSuccess: {
-    backgroundColor: '#10B981',
-  },
-  modalIconError: {
-    backgroundColor: '#EF4444',
-  },
-  modalIconWarning: {
-    backgroundColor: '#F59E0B',
-  },
-  modalIconInfo: {
-    backgroundColor: '#3B82F6',
-  },
+  modalIconSuccess: { backgroundColor: '#10B981' },
+  modalIconError: { backgroundColor: '#EF4444' },
+  modalIconWarning: { backgroundColor: '#F59E0B' },
+  modalIconInfo: { backgroundColor: '#3B82F6' },
   modalTitle: {
     fontSize: 20,
     fontFamily: 'Poppins-SemiBold',
@@ -1544,18 +1371,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalConfirmButtonSuccess: {
-    backgroundColor: '#10B981',
-  },
-  modalConfirmButtonError: {
-    backgroundColor: '#EF4444',
-  },
-  modalConfirmButtonWarning: {
-    backgroundColor: '#F59E0B',
-  },
-  modalConfirmButtonInfo: {
-    backgroundColor: '#3B82F6',
-  },
+  modalConfirmButtonSuccess: { backgroundColor: '#10B981' },
+  modalConfirmButtonError: { backgroundColor: '#EF4444' },
+  modalConfirmButtonWarning: { backgroundColor: '#F59E0B' },
+  modalConfirmButtonInfo: { backgroundColor: '#3B82F6' },
   modalConfirmButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -1651,40 +1470,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontFamily: 'Poppins-Regular',
   },
-  webviewOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  webviewLoadingCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 32,
-    borderRadius: 20,
-    alignItems: 'center',
-    width: '85%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  webviewOverlayTitle: {
-    marginTop: 20,
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#111827',
-    textAlign: 'center',
-  },
-  webviewOverlaySubtitle: {
-    marginTop: 8,
-    fontSize: 15,
-    fontFamily: 'Poppins-Regular',
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
   paymentModalFooter: {
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -1706,78 +1491,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins-SemiBold',
     color: '#00B1EA',
-  },
-  paymentModalMessage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#EFF6FF',
-    borderTopWidth: 1,
-    borderTopColor: '#DBEAFE',
-    gap: 12,
-  },
-  paymentModalMessageText: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: 'Poppins-Regular',
-    color: '#4B5563',
-    lineHeight: 22,
-  },
-
-  // ==================== ESTILOS PARA TIMEOUT ====================
-  timeoutWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 12,
-    gap: 6,
-  },
-  timeoutWarningText: {
-    fontSize: 13,
-    color: '#92400E',
-    fontFamily: 'Poppins-Regular',
-  },
-  loadingActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-    width: '100%',
-  },
-  primaryActionButton: {
-    flex: 1,
-    backgroundColor: '#00CC86',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  primaryActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  secondaryActionButton: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  secondaryActionText: {
-    color: '#374151',
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
   },
 });
