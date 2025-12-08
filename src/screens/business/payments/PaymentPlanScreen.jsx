@@ -507,14 +507,49 @@ export default function PaymentPlanScreen() {
       return;
     }
 
+    // Verificar si ya tenemos un plan en estado CANCELLED
+    if (subscription.status === 'CANCELLED' && subscription.id) {
+      // En lugar de crear uno nuevo, activar el existente
+      setProcessing(true);
+
+      try {
+        const result = await PaymentPlanService.activatePaymentPlan(subscription.id, 'MANUAL', null, 'Suscripción reactivada desde estado cancelado');
+
+        if (result.success) {
+          const updatedPlan = result.data;
+          
+          setSubscription({
+            ...subscription,
+            status: updatedPlan.status || 'TRIAL',
+            isTrial: true,
+            daysRemaining: updatedPlan.daysRemaining || 14,
+            trialStart: updatedPlan.trialStart,
+            trialEnd: updatedPlan.trialEnd,
+            nextBillingDate: updatedPlan.nextBillingDate,
+          });
+
+          showSuccessModal('Suscripción Reactivada', 'Tu suscripción ha sido reactivada.', () => loadSubscription(businessId));
+
+          if (mercadoPagoUrl) {
+            setTimeout(() => setShowPaymentModal(true), 500);
+          }
+        } else {
+          showErrorModal('Error', result.message || 'No se pudo reactivar la suscripción');
+        }
+      } catch (error) {
+        console.error('❌ Error reactivando suscripción:', error);
+        showErrorModal('Error', 'No se pudo reactivar la suscripción');
+      } finally {
+        setProcessing(false);
+      }
+
+      return;
+    }
+
     setProcessing(true);
 
     try {
-      const result = await PaymentPlanService.handleSubscription(
-        businessId,
-        userId,
-        businessName,
-      );
+      const result = await PaymentPlanService.handleSubscription(businessId, userId, businessName);
 
       if (result.success && result.data) {
         if (result.alreadyExists) {
