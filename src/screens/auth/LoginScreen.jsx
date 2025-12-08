@@ -80,7 +80,8 @@ const LoginScreen = ({ navigation }) => {
                 <Image source={LogoTraelo} style={styles.logo} />
               </View>
 
-              <Text style={styles.subtitle}>Centro comercial</Text>
+              <Text style={styles.subtitle}>Centro comercial digital</Text>
+              <Text style={styles.tagline}>Accede a los negocios de tu zona</Text>
 
               <InputField
                 label={'Email o usuario'}
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 200,
     height: 200,
-    top: 20,
+    top: 15,
     resizeMode: 'contain',
   },
   subtitle: {
@@ -195,7 +196,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '500',
     color: '#515151ff',
-    marginBottom: 20,
+    marginBottom: 10,
+  },
+  tagline: {
+    fontFamily: 'Roboto-Regular',
+    textAlign: 'center',
+    fontSize: 15,
+    color: '#666',
+    marginBottom: 30,
   },
   errorText: {
     color: 'red',
@@ -213,11 +221,11 @@ const styles = StyleSheet.create({
   },
   promptText: {
     fontFamily: 'Roboto-Medium',
-    fontSize: 15,
+    fontSize: 17,
     color: '#666',
   },
   registerLink: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#3498DB',
     fontFamily: 'Roboto-Medium',
   },

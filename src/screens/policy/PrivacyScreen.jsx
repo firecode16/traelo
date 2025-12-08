@@ -8,55 +8,51 @@ const PrivacyScreen = () => {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
-      <Text style={styles.title}>Política de Privacidad - Traelo</Text>
-      <Text style={styles.effectiveDate}>Última actualización: 08/19/2025</Text>
+      <Text style={styles.title}>Política de Privacidad - Traelo App</Text>
+      <Text style={styles.effectiveDate}>Última actualización: 12/08/2025</Text>
 
       <Text style={styles.paragraph}>
-        En Traelo, respetamos tu privacidad y nos comprometemos a proteger la
-        información personal que compartes con nosotros. Esta política describe
-        cómo recopilamos, usamos y protegemos tus datos.
+        En Traelo App cuidamos tu información. Esta política explica de forma clara
+        qué datos recopilamos y cómo los usamos para brindar nuestros servicios.
       </Text>
 
       <Text style={styles.sectionTitle}>Información que recopilamos</Text>
       <Text style={styles.paragraph}>
-        • Datos personales que proporcionas al registrarte en la aplicación
-        (nombre, correo electrónico, etc.).
-        {'\n'}• Datos de uso, como interacciones dentro de la aplicación.
-        {'\n'}• Datos de ubicación, solo cuando son necesarios para el
-        funcionamiento de la app (por ejemplo, entregas).
+        • Datos que proporcionas al registrarte: nombre, correo electrónico y número telefónico.
+        {'\n'}• Datos de ubicación cuando son necesarios para pedidos, entregas o mostrar negocios cercanos.
+        {'\n'}• Datos de uso dentro de la app para mejorar su funcionamiento.
       </Text>
 
-      <Text style={styles.sectionTitle}>Uso de la información</Text>
+      <Text style={styles.sectionTitle}>Cómo usamos tu información</Text>
       <Text style={styles.paragraph}>
-        Utilizamos la información recopilada para:
-        {'\n\n'}• Proporcionar y mejorar nuestros servicios.
+        Usamos la información únicamente para:
+        {'\n\n'}• Operar la plataforma.
         {'\n'}• Procesar pedidos y entregas.
-        {'\n'}• Enviar notificaciones relacionadas con el servicio.
+        {'\n'}• Mostrar negocios cercanos según tu zona.
+        {'\n'}• Mejorar la experiencia dentro de la app.
       </Text>
 
-      <Text style={styles.sectionTitle}>Compartir información</Text>
+      <Text style={styles.sectionTitle}>Con quién compartimos tus datos</Text>
       <Text style={styles.paragraph}>
-        No compartimos tu información personal con terceros, excepto cuando sea
-        necesario para cumplir con la ley o para prestar el servicio (por
-        ejemplo, con negocios).
+        Traelo App no vende ni comparte tu información con terceros. Solo se
+        comparte con negocios o repartidores cuando es necesario para completar un pedido.
       </Text>
 
       <Text style={styles.sectionTitle}>Seguridad</Text>
       <Text style={styles.paragraph}>
-        Implementamos medidas de seguridad para proteger tus datos personales
-        contra accesos no autorizados.
+        Aplicamos medidas razonables para proteger tus datos. Aunque ningún sistema
+        es 100% infalible, trabajamos para mantener tu información segura.
       </Text>
 
       <Text style={styles.sectionTitle}>Cambios en esta política</Text>
       <Text style={styles.paragraph}>
-        Podemos actualizar esta política en el futuro. Notificaremos cualquier
-        cambio importante a través de la aplicación.
+        Cualquier actualización importante será informada dentro de la aplicación.
       </Text>
 
       <View style={styles.contactSection}>
         <Text style={styles.sectionTitle}>Contacto</Text>
         <Text style={styles.paragraph}>
-          Si tienes preguntas sobre esta política, puedes escribirnos a:
+          Si tienes dudas sobre esta política, escríbenos:
         </Text>
         <Text style={styles.contactEmail}>hfredi35@gmail.com</Text>
       </View>
@@ -108,7 +104,7 @@ const styles = StyleSheet.create({
   contactEmail: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: COLOR.orange,
+    color: COLOR.green,
     textAlign: 'center',
     marginTop: 10,
   },

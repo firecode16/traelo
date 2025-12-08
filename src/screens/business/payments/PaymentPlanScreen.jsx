@@ -917,13 +917,15 @@ export default function PaymentPlanScreen() {
 
             <View style={styles.featuresList}>
               {[
-                'Para recoger',
-                'A Domicilio',
-                'Puntos de entrega',
-                'Auto-expansión controlada',
-                'Dashboard completo',
-                'Gastos de envío configurables',
-                'Logística propia',
+                'Catálogo digital completo',
+                'Pedidos para recoger',
+                'Pedidos a domicilio',
+                'Puntos de entrega configurables',
+                'Autonomía del negocio (zonas, comisiones, precios)',
+                'Configuración propia de envío',
+                'Dashboard de administración',
+                'Logística propia del negocio',
+                'Soporte técnico básico',
               ].map((feature, index) => (
                 <View key={index} style={styles.featureItem}>
                   <MaterialIcons

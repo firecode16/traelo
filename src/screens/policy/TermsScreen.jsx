@@ -1,4 +1,3 @@
-// TermsScreen.jsx
 import React from 'react';
 import { ScrollView, Text, StyleSheet, View } from 'react-native';
 import { COLOR } from '../../constants/Color';
@@ -9,101 +8,83 @@ const TermsScreen = () => {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
-      <Text style={styles.title}>Términos y Condiciones de Traelo</Text>
-      <Text style={styles.effectiveDate}>Última actualización: 08/19/2025</Text>
+      <Text style={styles.title}>Términos y Condiciones - Traelo App</Text>
+      <Text style={styles.effectiveDate}>Última actualización: 12/08/2025</Text>
 
-      <Text style={styles.sectionTitle}>1. Aceptación de los Términos</Text>
+      <Text style={styles.sectionTitle}>1. Aceptación</Text>
       <Text style={styles.paragraph}>
-        Al acceder y utilizar la aplicación móvil Traelo (en adelante, la
-        "App"), usted acepta estar legalmente obligado por estos Términos y
-        Condiciones de Uso (los "Términos"). Si no está de acuerdo con alguno de
-        estos Términos, no podrá usar la App.
+        Al usar Traelo App aceptas estos Términos y Condiciones. Si no estás de
+        acuerdo, no podrás utilizar la plataforma.
       </Text>
 
-      <Text style={styles.sectionTitle}>2. Descripción del Servicio</Text>
+      <Text style={styles.sectionTitle}>2. Descripción del servicio</Text>
       <Text style={styles.paragraph}>
-        Traelo es una plataforma que conecta a negocios de comida con clientes
-        finales, ofreciendo lo mejor de servicios de entrega a domicilio y menús
-        digitales. Los restaurantes y establecimientos de comida (en adelante,
-        "Negocios") pueden publicar sus productos y menús, y los clientes (en
-        adelante, "Usuarios") pueden realizar pedidos a través de la App,
-        eligiendo entre entrega a domicilio o recoger en el local.
+        Traelo App es un centro comercial digital multisectorial donde negocios
+        pueden publicar productos y servicios. Los usuarios pueden realizar
+        pedidos para recoger, recibir a domicilio o recibir en puntos definidos
+        por el negocio.
+        {'\n\n'}
+        Cada negocio administra su catálogo, precios, zonas de cobertura y logística.
+        Traelo App solo provee la plataforma tecnológica.
       </Text>
 
       <Text style={styles.sectionTitle}>3. Registro</Text>
       <Text style={styles.paragraph}>
-        Para utilizar ciertas funcionalidades de la App, deberá registrarse
-        creando una cuenta. Usted se compromete a:
-        {'\n\n'}a) Proporcionar información veraz, exacta y completa.
-        {'\n\n'}b) Mantener la confidencialidad de su contraseña.
-        {'\n\n'}c) Ser responsable de todas las actividades que ocurran bajo su
-        cuenta.
+        Para usar ciertas funciones debes crear una cuenta. Aceptas proporcionar
+        información verdadera y mantener la seguridad de tus credenciales.
       </Text>
 
-      <Text style={styles.sectionTitle}>4. Pedidos y Pagos</Text>
+      <Text style={styles.sectionTitle}>4. Pedidos y pagos</Text>
       <Text style={styles.paragraph}>
-        Los Usuarios pueden realizar pedidos a través de la App. Los precios de
-        los productos son establecidos por los Negocios. Traelo no interviene en
-        la fijación de precios. Los pagos se realizan a través de los métodos
-        disponibles en la App (tarjeta de crédito/débito, efectivo, etc.).
-        Traelo no se responsabiliza por la calidad de los productos, que es
-        responsabilidad exclusiva del Negocio.
+        Los precios y disponibilidad son establecidos por cada negocio.
+        Traelo App no modifica precios ni interviene en la relación comercial.
+        Los pagos se realizan mediante los métodos habilitados dentro de la app
+        o según indicación del negocio.
       </Text>
 
       <Text style={styles.sectionTitle}>5. Entregas</Text>
       <Text style={styles.paragraph}>
-        Los Negocios son responsables de la entrega de los pedidos, ya sea a
-        través de sus propios repartidores o servicios de entrega contratados
-        por ellos. Traelo actúa únicamente como intermediario. Cualquier retraso
-        o incidencia en la entrega debe ser gestionada directamente con el
-        Negocio.
+        Las entregas son responsabilidad del negocio, ya sea con su propio
+        personal o repartidores independientes. Cualquier incidencia debe ser
+        gestionada directamente con el negocio.
       </Text>
 
-      <Text style={styles.sectionTitle}>6. Conducta Prohibida</Text>
+      <Text style={styles.sectionTitle}>6. Conducta del usuario</Text>
       <Text style={styles.paragraph}>
-        Usted se compromete a no:
-        {'\n\n'}a) Usar la App con fines ilegales o no autorizados.
-        {'\n\n'}b) Publicar contenido ofensivo, fraudulento o engañoso.
-        {'\n\n'}c) Realizar pedidos falsos o con intención de estafar.
+        No puedes usar la app para actividades ilegales, publicar información
+        falsa o realizar pedidos con intención de fraude.
       </Text>
 
-      <Text style={styles.sectionTitle}>7. Propiedad Intelectual</Text>
+      <Text style={styles.sectionTitle}>7. Propiedad intelectual</Text>
       <Text style={styles.paragraph}>
-        Todos los derechos de propiedad intelectual sobre la App y su contenido
-        son propiedad de Traelo o sus licenciantes. Queda prohibida la
-        reproducción, distribución o modificación sin autorización expresa.
+        Todo el contenido y marca de Traelo App pertenece a sus respectivos
+        propietarios. No está permitido copiar, modificar o distribuir el
+        contenido sin permiso.
       </Text>
 
-      <Text style={styles.sectionTitle}>
-        8. Tarifas y Limitación de Responsabilidad
-      </Text>
+      <Text style={styles.sectionTitle}>8. Tarifas</Text>
       <Text style={styles.paragraph}>
-        Los Negocios pagan una tarifa mensual de $350 MXN por el uso de la
-        plataforma. Traelo no será responsable por daños indirectos,
-        incidentales o consecuentes derivados del uso de la App. En ningún caso
-        la responsabilidad total de Traelo excederá el monto equivalente a 6
-        meses de la tarifa mensual ($2,100 MXN).
+        Los negocios pagan una membresía mensual de $369 MXN por el uso de la
+        plataforma. No se cobran comisiones por venta ni comisiones por envío.
       </Text>
 
-      <Text style={styles.sectionTitle}>9. Modificaciones</Text>
+      <Text style={styles.sectionTitle}>9. Responsabilidad</Text>
       <Text style={styles.paragraph}>
-        Traelo se reserva el derecho de modificar estos Términos en cualquier
-        momento. Las versiones actualizadas se publicarán en la App. El uso
-        continuado de la App después de dichas modificaciones constituirá su
-        consentimiento.
+        Traelo App no es responsable por la calidad de productos, retrasos,
+        entregas, precios, errores en pedidos o daños derivados del uso de la
+        plataforma. Cada negocio es responsable de su operación.
       </Text>
 
-      <Text style={styles.sectionTitle}>10. Ley Aplicable</Text>
+      <Text style={styles.sectionTitle}>10. Modificaciones</Text>
       <Text style={styles.paragraph}>
-        Estos Términos se regirán por las leyes de México. Cualquier disputa se
-        someterá a los tribunales competentes de la Ciudad de México.
+        Podemos actualizar estos términos. Cualquier cambio importante será
+        informado dentro de la app.
       </Text>
 
       <View style={styles.contactSection}>
         <Text style={styles.sectionTitle}>Contacto</Text>
         <Text style={styles.paragraph}>
-          Si tienes preguntas sobre estos Términos y Condiciones, puedes
-          escribirnos a:
+          Si tienes preguntas sobre estos términos:
         </Text>
         <Text style={styles.contactEmail}>hfredi35@gmail.com</Text>
       </View>
@@ -127,7 +108,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
     color: COLOR.black,
-    marginHorizontal: 10,
   },
   effectiveDate: {
     fontSize: 14,
@@ -135,7 +115,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     color: '#666',
-    marginHorizontal: 10,
   },
   sectionTitle: {
     fontSize: 18,
@@ -143,7 +122,6 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 5,
     color: COLOR.black,
-    marginHorizontal: 5,
   },
   paragraph: {
     fontSize: 14,
@@ -151,21 +129,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#333',
     lineHeight: 20,
-    marginHorizontal: 5,
     textAlign: 'justify',
   },
   contactSection: {
     marginTop: 10,
     marginBottom: 30,
-    marginHorizontal: 5,
   },
   contactEmail: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: COLOR.orange,
+    color: COLOR.green,
     textAlign: 'center',
     marginTop: 10,
-    marginHorizontal: 5,
   },
 });
 
