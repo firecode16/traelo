@@ -35,10 +35,10 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ],
-      "package": "com.traelo.app",
+      "package": "com.company.app",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyC9j2y_FhfBmmBOqMNF5oJ6EHrD5myc0wE"
+          "apiKey": "API_KEY"
         }
       },
       "usesCleartextTraffic": true
@@ -57,9 +57,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "98633fed-0a64-4bc4-89f2-ef270179d18b"
+        "projectId": "PROJECT_ID"
       }
     },
-    "owner": "hfredi35"
+    "owner": "user"
   }
 }
