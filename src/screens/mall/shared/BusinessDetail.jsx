@@ -26,7 +26,7 @@ const HEADER_MAX_HEIGHT = 200;
 const HEADER_MIN_HEIGHT = 60;
 const INFO_CONTAINER_HEIGHT = 120;
 
-const APP_STORE_LINK = Platform.OS === 'ios' ? 'https://apps.apple.com/app/idTU_APP_ID' : 'https://play.google.com/store/apps/details?id=com.traelo.app';
+const APP_STORE_LINK = Platform.OS === 'ios' ? 'https://apps.apple.com/app/idTU_APP_ID' : 'https://play.google.com/store/apps/details?id=com.company.app';
 
 const sectorComponents = {
   food: BusinessFoodContent,

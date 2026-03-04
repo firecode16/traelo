@@ -54,7 +54,7 @@ const PrivacyScreen = () => {
         <Text style={styles.paragraph}>
           Si tienes dudas sobre esta política, escríbenos:
         </Text>
-        <Text style={styles.contactEmail}>hfredi35@gmail.com</Text>
+        <Text style={styles.contactEmail}>usuario@gmail.com</Text>
       </View>
     </ScrollView>
   );

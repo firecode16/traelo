@@ -29,7 +29,7 @@ const BOTTOM_TAB_HEIGHT = 80;
 const EXTRA_SAFE_SPACE = Platform.OS === 'ios' ? 40 : 20;
 const FOOTER_PADDING = BOTTOM_TAB_HEIGHT + EXTRA_SAFE_SPACE;
 
-const APP_STORE_LINK = Platform.OS === 'ios' ? 'https://apps.apple.com/app/id=com.traelo.app' : 'https://play.google.com/store/apps/details?id=com.traelo.app';
+const APP_STORE_LINK = Platform.OS === 'ios' ? 'https://apps.apple.com/app/id=com.traelo.app' : 'https://play.google.com/store/apps/details?id=com.company.app';
 
 const FooterSections = ({ onShare }) => (
   <View>

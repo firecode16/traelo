@@ -36,10 +36,10 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ],
-      "package": "com.traelo.app",
+      "package": "com.company.app",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyC9j2y_FhfBmmBOqMNF5oJ6EHrD5myc0wE"
+          "apiKey": "GOOGLE_MAPS_API_KEY"
         }
       }
     },
@@ -56,14 +56,14 @@
       [
         "@rnmapbox/maps",
         {
-          "RNMapboxMapsAccessToken": "pk.eyJ1IjoiYnJhaW4xNiIsImEiOiJjbWdrMXk2ajUwcW9rMmtwcnNvMWdxcnBwIn0.Fj4niAUzl-JUOGV57Av_7w"
+          "RNMapboxMapsAccessToken": "MAPBOX_ACCESS_TOKEN"
         }
       ],
       "expo-font"
     ],
     "extra": {
       "eas": {
-        "projectId": "98633fed-0a64-4bc4-89f2-ef270179d18b"
+        "projectId": "PROJECT_ID"
       }
     }
   }

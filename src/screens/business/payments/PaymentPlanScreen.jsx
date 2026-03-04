@@ -17,7 +17,7 @@ import PaymentPlanService from '../../../services/PaymentPlanService';
 const { width, height } = Dimensions.get('window');
 
 // ==================== CONSTANTES ====================
-const MERCADO_PAGO_URL = 'https://www.mercadopago.com.mx/subscriptions/checkout/v2?preapproval_plan_id=ea7d51d0517a479295a988be36d478bd';
+const MERCADO_PAGO_URL = 'https://www.mercadopago.com.mx/subscriptions/checkout/v2?preapproval_plan_id=PLAN_ID';
 
 // ==================== COMPONENTES REUTILIZABLES ====================
 const Card = ({ children, style }) => (

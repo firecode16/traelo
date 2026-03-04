@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { API } from '../constants/ApiConfig';
 
-const MERCADO_PAGO_URL = 'https://www.mercadopago.com.mx/subscriptions/checkout/v2?preapproval_plan_id=ea7d51d0517a479295a988be36d478bd';
+const MERCADO_PAGO_URL = 'https://www.mercadopago.com.mx/subscriptions/checkout/v2?preapproval_plan_id=PLAN_ID';
 
 const PaymentPlanService = {
   // ==================== PLANES DE PAGO ====================

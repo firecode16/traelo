@@ -86,7 +86,7 @@ const TermsScreen = () => {
         <Text style={styles.paragraph}>
           Si tienes preguntas sobre estos términos:
         </Text>
-        <Text style={styles.contactEmail}>hfredi35@gmail.com</Text>
+        <Text style={styles.contactEmail}>usuario@gmail.com</Text>
       </View>
     </ScrollView>
   );

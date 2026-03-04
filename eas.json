@@ -7,7 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "sk.eyJ1IjoiYnJhaW4xNiIsImEiOiJjbWd3cmp3aW8xNGNsMndweTJ5N3BxemRzIn0.B0sm0HvZoN9yITo3bXgVzQ"
+        "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "MAPBOX_DOWNLOAD_TOKEN"
       }
     },
     "preview": {
