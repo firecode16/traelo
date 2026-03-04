@@ -1,4 +1,4 @@
-const BASE_URL = 'https://traelo-gateway-production.up.railway.app/api'; // 🔁 Change environment
+const BASE_URL = 'https://traelo-gateway-production.infra/api'; // 🔁 Change environment
 
 export { BASE_URL };
 
